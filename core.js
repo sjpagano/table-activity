@@ -12,20 +12,24 @@ export function parseDates(text){const found=[];const add=(y,m,d)=>{if(y<100)y+=
  return found;
 }
 export const weekday=date=>isISODate(date)?new Date(date+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'long',timeZone:'UTC'}):'';
-// Handwriting models can confuse a slash with a vertical stroke. Only accept
-// that repair when an independently read weekday agrees with a unique date.
+// Read only the cropped date line here. Do not let a misread weekday veto a
+// clearly written numeric date; keep the conflict visible for review instead.
 export function handwritingDate(text){
- const day=String(text).match(/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/i)?.[1]?.toLowerCase();
- const literal=parseDates(text).filter(d=>!day||weekday(d).toLowerCase()===day);
- if(literal.length===1)return {date:literal[0],repaired:false,day};
- if(!day)return null;
+ const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+ const token=String(text).match(/\b(Mon(?:day)?|Tue(?:s(?:day)?)?|Wed(?:nesday)?|Thu(?:rs(?:day)?)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)\b/i)?.[1];
+ const day=token&&days.find(d=>d.toLowerCase().startsWith(token.slice(0,3).toLowerCase())).toLowerCase();
+ const normalized=String(text).replace(/[⁄∕\\|]/g,'/').replace(/(?<=\d)\s*[,;]\s*(?=\d)/g,'/');
+ const literal=parseDates(normalized),matching=literal.filter(d=>!day||weekday(d).toLowerCase()===day);
+ if(matching.length===1)return {date:matching[0],repaired:normalized!==String(text),day};
+ if(literal.length===1)return {date:literal[0],repaired:false,day,weekdayMismatch:true};
+ if(literal.length>1)return null;
  const found=new Set();
- for(const token of String(text).matchAll(/(?<![\w])([\d/|Il.\-]{6,12})(?![\w])/g)){
+ for(const token of normalized.replace(/\s*([/.-])\s*/g,'$1').matchAll(/(?<![\w])([\d/Il.\-]{6,12})(?![\w])/g)){
   const s=token[1];
   for(let a=1;a<=2;a++)for(let b=a+2;b<=a+3;b++){
    if(!/[1/|Il.\-]/.test(s[a]||'')||!/[1/|Il.\-]/.test(s[b]||''))continue;
    const normalized=s.slice(0,a)+'/'+s.slice(a+1,b)+'/'+s.slice(b+1);
-   for(const d of parseDates(normalized))if(weekday(d).toLowerCase()===day)found.add(d);
+   for(const d of parseDates(normalized))if((day&&weekday(d).toLowerCase()===day)||(!day&&/[/.\-]/.test(s)))found.add(d);
   }
  }
  return found.size===1?{date:[...found][0],repaired:true,day}:null;

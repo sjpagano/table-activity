@@ -59,11 +59,11 @@ function gridForCard(job){
   td.append(button);row.append(td);
  });row.append(el('td','total',counts.rows[r]));body.append(row);});table.append(body);
  const foot=el('tfoot'),fr=el('tr');['SCORE',...counts.cols,counts.grand].forEach((v,i)=>fr.append(el('th',i===job.times.length+1?'total':'',v)));foot.append(fr);table.append(foot);
- const bar=el('div','horizontal-scroll'),left=el('button','','←'),right=el('button','','→'),range=el('input');range.type='range';range.min=0;range.max=1000;range.value=0;range.setAttribute('aria-label',`Scroll times for ${jobLabel(job)}`);left.setAttribute('aria-label',`Scroll left for ${jobLabel(job)}`);right.setAttribute('aria-label',`Scroll right for ${jobLabel(job)}`);
- bar.append(left,range,right);wrap.append(bar,scroll);
- const sync=()=>{const max=scroll.scrollWidth-scroll.clientWidth;range.value=max>0?scroll.scrollLeft/max*1000:0;range.disabled=max<=0;left.disabled=scroll.scrollLeft<1;right.disabled=scroll.scrollLeft>=max-1;};
+ const bar=el('div','horizontal-scroll'),range=el('input');range.type='range';range.min=0;range.max=1000;range.value=0;range.setAttribute('aria-label',`Scroll times for ${jobLabel(job)}`);
+ bar.append(range);wrap.append(bar,scroll);
+ const sync=()=>{const max=scroll.scrollWidth-scroll.clientWidth;range.value=max>0?scroll.scrollLeft/max*1000:0;range.disabled=max<=0;};
  range.addEventListener('input',()=>{scroll.scrollLeft=+range.value/1000*(scroll.scrollWidth-scroll.clientWidth);sync();});
- left.addEventListener('click',()=>scroll.scrollBy({left:-250,behavior:'smooth'}));right.addEventListener('click',()=>scroll.scrollBy({left:250,behavior:'smooth'}));scroll.addEventListener('scroll',sync,{passive:true});
+ scroll.addEventListener('scroll',sync,{passive:true});
  requestAnimationFrame(()=>{scroll.scrollLeft=job.scrollLeft||0;sync();});scroll.addEventListener('scroll',()=>job.scrollLeft=scroll.scrollLeft,{passive:true});
  return wrap;
 }
@@ -78,7 +78,7 @@ function renderCard(job){
  if(job.datePreview){const crop=el('img','batch-date-crop');crop.src=job.datePreview;crop.alt=`Original date for ${jobLabel(job)}`;card.append(crop);}
  const fields=el('div','batch-fields'),label=el('label','','Date'),date=el('input');date.type='date';date.min='1900-01-01';date.max='2199-12-31';date.value=job.date;date.setAttribute('aria-label',`Date for ${jobLabel(job)}`);date.addEventListener('change',()=>{changeDate(job,date.value);exported=false;renderCard(job);updateExport();});label.append(date);
  fields.append(label,el('span','batch-weekday',weekday(job.date)||'Enter date'),el('strong','batch-score',`${totals(job.grid).grand} X’s`));card.append(fields);
- const note=job.alignmentDirty?'Grid alignment changed — open this scan and read marks again.':job.dateSource==='metadata'?'Metadata date — verify against the original.':job.dateSource==='suggestion'?'Handwritten date suggestion — check the crop above.':!isISODate(job.date)?'Enter a valid activity date.':job.dateNote;
+ const note=job.alignmentDirty?'Grid alignment changed — open this scan and read marks again.':job.dateNote||'Enter a valid activity date.';
  card.append(el('p','hint'+(['metadata','suggestion'].includes(job.dateSource)||job.alignmentDirty?' needs-check':''),note));
  card.append(gridForCard(job));
  const actions=el('div','batch-actions'),reviewLabel=el('label','review-check'),checked=el('input');checked.type='checkbox';checked.checked=job.reviewed;checked.disabled=!canReview(job);checked.setAttribute('aria-label',`Reviewed ${jobLabel(job)}`);checked.addEventListener('change',()=>{job.reviewed=checked.checked;exported=false;card.classList.toggle('is-reviewed',job.reviewed);updateExport();});reviewLabel.append(checked,document.createTextNode('Reviewed'));
@@ -153,7 +153,7 @@ $('nextScan').addEventListener('click',()=>{const ready=jobs.filter(j=>j.status=
 $('reviewNext').addEventListener('click',()=>{if(!state.job||!canReview(state.job))return;$('reviewed').checked=true;saveActive();const next=jobs.find(j=>j.status==='ready'&&!j.reviewed);if(next)selectJob(next.id);else showOverview();});
 $('retryDate').addEventListener('click',async()=>{
  if(!state.source||!state.job)return;setBusy(true,'Reading date…');
- try{const job=state.job;saveActive();job.dateSource='';job.source=state.source;await recognizeDate(job,progress);delete job.source;$('dateCrop').src=job.datePreview;$('ocrText').textContent=job.ocrText;setDate(job.date,job.dateSource,job.dateNote);}
+ try{const job=state.job;saveActive();if(job.dateSource==='manual')job.dateSource='';job.source=state.source;await recognizeDate(job,progress);delete job.source;$('dateCrop').src=job.datePreview;$('ocrText').textContent=job.ocrText;setDate(job.date,job.dateSource,job.dateNote);}
  catch(e){message(e.message,true);}finally{delete state.job?.source;setBusy(false);renderBatch();}
 });
 $('rotateBtn').addEventListener('click',async()=>{
@@ -181,9 +181,7 @@ $('exportBtn').addEventListener('click',async()=>{
 window.addEventListener('beforeunload',e=>{if(jobs.length&&!exported){e.preventDefault();e.returnValue='';}});
 if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
 const gridScroller=$('activityGrid').parentElement;
-function syncGridScroll(){const max=gridScroller.scrollWidth-gridScroller.clientWidth;$('gridPosition').value=max>0?Math.round(gridScroller.scrollLeft/max*1000):0;$('gridPosition').disabled=max<=0;$('scrollLeft').disabled=gridScroller.scrollLeft<=0;$('scrollRight').disabled=gridScroller.scrollLeft>=max-1;const index=Math.max(0,Math.min(state.times.length-1,Math.round(gridScroller.scrollLeft/49)));$('scrollPosition').textContent=state.times[index]||'';}
+function syncGridScroll(){const max=gridScroller.scrollWidth-gridScroller.clientWidth;$('gridPosition').value=max>0?Math.round(gridScroller.scrollLeft/max*1000):0;$('gridPosition').disabled=max<=0;const index=Math.max(0,Math.min(state.times.length-1,Math.round(gridScroller.scrollLeft/49)));$('scrollPosition').textContent=state.times[index]||'';}
 $('gridPosition').addEventListener('input',e=>{gridScroller.scrollLeft=+e.target.value/1000*(gridScroller.scrollWidth-gridScroller.clientWidth);syncGridScroll();});
-$('scrollLeft').addEventListener('click',()=>gridScroller.scrollBy({left:-Math.max(200,gridScroller.clientWidth*.7),behavior:'smooth'}));
-$('scrollRight').addEventListener('click',()=>gridScroller.scrollBy({left:Math.max(200,gridScroller.clientWidth*.7),behavior:'smooth'}));
 gridScroller.addEventListener('scroll',syncGridScroll,{passive:true});new ResizeObserver(syncGridScroll).observe(gridScroller);
 setLayout(layout.rows,layout.times);updateExport();
