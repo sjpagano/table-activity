@@ -1,8 +1,8 @@
-import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday,exifDate} from './core.js';
-import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js';
-import {recognizeDate} from './recognition.js';
-import {openWorkbook,exportBatch} from './excel.js';
-import {batchSummary,canReview,changeDate,toggleMark,matchingTemplate} from './batch.js';
+import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday,exifDate} from './core.js?v=20261012-3';
+import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261012-3';
+import {recognizeDate} from './recognition.js?v=20261012-3';
+import {openWorkbook,exportBatch} from './excel.js?v=20261012-3';
+import {batchSummary,canReview,changeDate,toggleMark,matchingTemplate,saveEditorChanges} from './batch.js?v=20261012-3';
 const $=id=>document.getElementById(id);
 const jobs=[];
 let nextId=1,processing=false,exporting=false,exported=false,activeId=null,selectionToken=0;
@@ -15,9 +15,18 @@ function progress(text,value=50){$('progressWrap').hidden=false;$('progressText'
 function setBusy(on,text='Reading this page…',value=50){state.busy=on;if(on)progress(text,value);else if(!processing&&!exporting)$('progressWrap').hidden=true;updateExport();}
 function saveActive(){
  if(!state.job)return;
- Object.assign(state.job,{rows:state.rows,times:state.times,grid:state.grid,uncertain:state.uncertain,corners:state.corners,history:state.history,alignmentDirty:state.alignmentDirty,sensitivity:+$('sensitivity').value,date:$('activityDate').value,dateSource:state.dateSource,dateNote:$('dateNote').textContent,reviewed:$('reviewed').checked});
+ saveEditorChanges(state.job,{...state,sensitivity:+$('sensitivity').value,reviewed:$('reviewed').checked});
+}
+function renderActiveDate(){
+ if(!state.job)return;
+ const {date,dateSource,dateNote}=state.job;
+ if($('activityDate').value!==(date||''))$('activityDate').value=date||'';
+ state.dateSource=dateSource;$('dateNote').textContent=dateNote||'';
+ $('dateNote').classList.toggle('fallback',['metadata','suggestion'].includes(dateSource));$('weekday').textContent=weekday(date)||'—';
+ $('ocrText').textContent=`App version: 20261012-3\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
 }
 function updateExport(){
+ renderActiveDate();
  const summary=batchSummary(jobs),locked=state.busy||exporting;
  $('exportBtn').disabled=processing||locked||state.aligning||!summary.canExport;
  $('exportBtn').textContent=jobs.length?`Download Excel (${jobs.length} ${jobs.length===1?'tab':'tabs'})`:'Download Excel';
@@ -43,7 +52,7 @@ function invalidate(){
  if(state.job){state.job.reviewed=false;renderCard(state.job);}
  updateExport();
 }
-function setDate(date,source,note){$('activityDate').value=date||'';state.dateSource=source;$('dateNote').textContent=note;$('dateNote').classList.toggle('fallback',source!=='document'&&source!=='manual');$('weekday').textContent=weekday(date)||'—';invalidate();}
+function setDate(date,source,note){if(!state.job)return;Object.assign(state.job,{date:date||'',dateSource:source,dateNote:note});renderActiveDate();invalidate();}
 function refreshActive(){saveActive();if(state.job)renderCard(state.job);updateExport();}
 function jobLabel(job){return job.fileName+(job.pageCount>1?` · page ${job.page}/${job.pageCount}`:'');}
 function newJob(file=null){return {id:nextId++,file,fileName:file?.name||'Blank sheet',page:1,pageCount:1,status:'queued',rows:[...layout.rows],times:[...layout.times],grid:null,uncertain:[],history:[],reviewed:false,date:'',dateSource:'',dateNote:'',alignmentDirty:false,sensitivity:50,sourceBlob:null};}
@@ -179,7 +188,7 @@ $('exportBtn').addEventListener('click',async()=>{
  catch(e){message('Export failed: '+e.message,true);}finally{exporting=false;$('progressWrap').hidden=true;renderBatch();}
 });
 window.addEventListener('beforeunload',e=>{if(jobs.length&&!exported){e.preventDefault();e.returnValue='';}});
-if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261012-3').catch(()=>{});
 const gridScroller=$('activityGrid').parentElement;
 function syncGridScroll(){const max=gridScroller.scrollWidth-gridScroller.clientWidth;$('gridPosition').value=max>0?Math.round(gridScroller.scrollLeft/max*1000):0;$('gridPosition').disabled=max<=0;const index=Math.max(0,Math.min(state.times.length-1,Math.round(gridScroller.scrollLeft/49)));$('scrollPosition').textContent=state.times[index]||'';}
 $('gridPosition').addEventListener('input',e=>{gridScroller.scrollLeft=+e.target.value/1000*(gridScroller.scrollWidth-gridScroller.clientWidth);syncGridScroll();});
