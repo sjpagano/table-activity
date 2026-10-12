@@ -14,11 +14,11 @@ for(const text of ['10/8126','10 | 8 | 26','10,8,26 THU','10/8/26 Friday']){
  r=await run({handwriting:text});assert.equal(r.job.date,'2026-10-08',text);assert.notEqual(r.job.dateSource,'metadata');
 }
 assert.equal(handwritingDate('10/8/26 Friday').weekdayMismatch,true);
-assert.equal(handwritingDate('1018126 Friday'),null);
+assert.equal(handwritingDate('1018126 Friday')?.weekdayMismatch,true);
 r=await run({handwriting:'garbled',retryHandwriting:'10/8/26 THURSDAY'});
 assert.deepEqual(r.calls,['handwriting','retryHandwriting']);assert.equal(r.job.date,'2026-10-08');
 r=await run({handwriting:new Error('Model unavailable'),text:'10/8/26'});
-assert.deepEqual(r.calls,['handwriting','text']);assert.equal(r.job.date,'2026-10-08');
+assert.deepEqual(r.calls,['handwriting','retryHandwriting','text']);assert.equal(r.job.date,'2026-10-08');
 r=await run({handwriting:'10/2/26 Thursday',retryHandwriting:'10/8/26 Thursday'});
 assert.equal(r.job.date,'2026-10-08');
 r=await run({});assert.equal(r.job.date,'2026-10-09');assert.equal(r.job.dateSource,'document');assert.match(r.job.dateNote,/embedded PDF/);

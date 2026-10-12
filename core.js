@@ -12,27 +12,30 @@ export function parseDates(text){const found=[];const add=(y,m,d)=>{if(y<100)y+=
  return found;
 }
 export const weekday=date=>isISODate(date)?new Date(date+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'long',timeZone:'UTC'}):'';
-// Read only the cropped date line here. Do not let a misread weekday veto a
-// clearly written numeric date; keep the conflict visible for review instead.
+// The activity sheet always uses M/D/Y. Only repair separator positions;
+// never change a date digit or infer a missing year from file metadata.
 export function handwritingDate(text){
  const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
  const token=String(text).match(/\b(Mon(?:day)?|Tue(?:s(?:day)?)?|Wed(?:nesday)?|Thu(?:rs(?:day)?)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)\b/i)?.[1];
  const day=token&&days.find(d=>d.toLowerCase().startsWith(token.slice(0,3).toLowerCase())).toLowerCase();
- const normalized=String(text).replace(/[⁄∕\\|]/g,'/').replace(/(?<=\d)\s*[,;]\s*(?=\d)/g,'/');
- const literal=parseDates(normalized),matching=literal.filter(d=>!day||weekday(d).toLowerCase()===day);
- if(matching.length===1)return {date:matching[0],repaired:normalized!==String(text),day};
- if(literal.length===1)return {date:literal[0],repaired:false,day,weekdayMismatch:true};
- if(literal.length>1)return null;
- const found=new Set();
- for(const token of normalized.replace(/\s*([/.-])\s*/g,'$1').matchAll(/(?<![\w])([\d/Il.\-]{6,12})(?![\w])/g)){
-  const s=token[1];
-  for(let a=1;a<=2;a++)for(let b=a+2;b<=a+3;b++){
-   if(!/[1/|Il.\-]/.test(s[a]||'')||!/[1/|Il.\-]/.test(s[b]||''))continue;
-   const normalized=s.slice(0,a)+'/'+s.slice(a+1,b)+'/'+s.slice(b+1);
-   for(const d of parseDates(normalized))if((day&&weekday(d).toLowerCase()===day)||(!day&&/[/.\-]/.test(s)))found.add(d);
+ const normalized=String(text).replace(/[⁄∕\\|(),;.\-]/g,'/');
+ const literal=new Set(),repaired=new Set();
+ const add=(set,m,d,y)=>{let year=+y;if(y.length===2)year+=year<70?2000:1900;const date=validDate(year,+m,+d);if(date)set.add(date);};
+ for(const token of normalized.matchAll(/(?<![\w/])([\d/Il\s]{6,24})(?![\w/])/g)){
+  const s=token[1].replace(/\s/g,'');
+  const exact=/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(s);
+  if(exact){add(literal,...exact.slice(1));continue;}
+  for(let m=1;m<=2;m++)for(let d=1;d<=2;d++){
+   const sep=m+d+1;
+   if(!/[1/Il]/.test(s[m]||'')||!/[1/Il]/.test(s[sep]||''))continue;
+   const parts=[s.slice(0,m),s.slice(m+1,sep),s.slice(sep+1)];
+   if(/^\d{1,2}$/.test(parts[0])&&/^\d{1,2}$/.test(parts[1])&&/^(\d{2}|\d{4})$/.test(parts[2]))add(repaired,...parts);
   }
  }
- return found.size===1?{date:[...found][0],repaired:true,day}:null;
+ const candidates=literal.size?literal:repaired;
+ const matching=[...candidates].filter(d=>!day||weekday(d).toLowerCase()===day);
+ const date=matching.length===1?matching[0]:candidates.size===1?[...candidates][0]:null;
+ return date?{date,repaired:!literal.size||normalized!==String(text),day,weekdayMismatch:!!day&&weekday(date).toLowerCase()!==day}:null;
 }
 export function metadataDate(s){const m=/^(?:D:)?(\d{4})[:\-]?(\d{2})[:\-]?(\d{2})/.exec(s||'');return m?validDate(+m[1],+m[2],+m[3]):null;}
 export function excelSerial(date,date1904=false){if(!isISODate(date))throw Error('Choose a valid activity date.');const ms=Date.parse(date+'T00:00:00Z');let n=(ms-Date.UTC(date1904?1904:1899,date1904?0:11,date1904?1:31))/86400000;if(!date1904&&n>=60)n++;return n;}

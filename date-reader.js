@@ -23,7 +23,7 @@ export async function readActivityDate(job,readers){
  };
  await attempt('Scanned handwriting',readers.handwriting);
  // A second rendering helps when punctuation is lost or the weekday conflicts.
- if(!result||result.weekdayMismatch)if(!errors.length)await attempt('Scanned handwriting retry',readers.retryHandwriting);
+ if(!result||result.weekdayMismatch)await attempt('Scanned handwriting retry',readers.retryHandwriting);
  if(!result||result.weekdayMismatch)await attempt('Scanned text',readers.text);
  if(!result)await attempt('Document header',readers.header,true);
  if(!result&&job.pdfText)await attempt('Embedded PDF text',()=>job.pdfText,true);
@@ -31,7 +31,7 @@ export async function readActivityDate(job,readers){
  if(job.dateSource==='manual')return;
  if(result){
   job.date=result.date;job.dateSource=result.repaired||result.weekdayMismatch?'suggestion':'document';
-  job.dateNote=result.weekdayMismatch?'Scanned date used, but the read weekday disagrees. Check the date crop and correct it if needed.':result.repaired?'Scanned date used; handwriting punctuation was interpreted. Check it against the crop.':`Date read from ${origin==='Embedded PDF text'?'embedded PDF text':origin.toLowerCase()}.`;
+  job.dateNote=result.weekdayMismatch?'Scanned date used, but the read weekday disagrees. Check the date crop and correct it if needed.':result.repaired?'Scanned date read as M/D/Y. Check it against the crop.':`Date read from ${origin==='Embedded PDF text'?'embedded PDF text':origin.toLowerCase()}.`;
   job.ocrText+=`\nSelected document date: ${result.date}. Metadata was not used.`;
  }else if(['document','suggestion'].includes(job.dateSource)&&isISODate(job.date)){
   job.dateNote='Could not read the date again. Kept the previously scanned date; check the crop.';

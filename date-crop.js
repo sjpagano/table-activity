@@ -1,5 +1,18 @@
 import {canvas} from './vision.js';
 
+// Keep the small date crop losslessly. The full review image is a JPEG to
+// conserve batch memory; recomputing the crop from it changes OCR input.
+export async function recognitionCrop(job){
+ const key=JSON.stringify([job.corners,job.rows.length]);
+ if(job.dateCropKey===key&&job.datePreview){
+  const image=new Image();image.src=job.datePreview;await image.decode();
+  const saved=canvas(image.naturalWidth,image.naturalHeight);saved.getContext('2d').drawImage(image,0,0);return saved;
+ }
+ const crop=dateCrop(job.source,job.corners,job.rows.length);
+ job.datePreview=crop.toDataURL('image/png');job.dateCropKey=key;
+ return crop;
+}
+
 export function dateCrop(source,corners,rowCount){
  const left=Math.min(corners[0].x,corners[3].x),right=Math.max(corners[1].x,corners[2].x);
  const top=Math.min(corners[0].y,corners[1].y),step=((corners[2].y+corners[3].y)/2-top)/rowCount;

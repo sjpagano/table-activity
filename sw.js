@@ -1,4 +1,4 @@
-const CACHE='table-scan-v6';
+const CACHE='table-scan-v7';
 const FILES=['./','./index.html','./style.css','./app.js','./batch.js','./recognition.js','./date-reader.js','./core.js','./vision.js','./excel.js','./date-crop.js','./handwriting-worker.js','./vendor/transformers.min.js','./vendor/ort-wasm-simd-threaded.jsep.mjs','./vendor/ort-wasm-simd-threaded.jsep.wasm','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./vendor/jszip.min.js','./vendor/tesseract.min.js','./vendor/worker.min.js','./vendor/pdf.mjs','./vendor/pdf.worker.mjs','./vendor/core/tesseract-core-lstm.wasm.js','./vendor/eng.traineddata.gz'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('table-scan-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

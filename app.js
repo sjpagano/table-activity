@@ -158,7 +158,7 @@ $('retryDate').addEventListener('click',async()=>{
 });
 $('rotateBtn').addEventListener('click',async()=>{
  if(!state.source)return;setBusy(true,'Rotating scan…');
- try{state.source=rotate(state.source,-90);state.corners=locateGrid(state.source,state.rows.length,state.times.length)?.corners||defaultCorners(state.source);state.selected=null;marks();state.job.sourceBlob=await sourceBlob(state.source);state.job.source=state.source;state.job.dateSource='';await recognizeDate(state.job,progress);delete state.job.source;$('dateCrop').src=state.job.datePreview;$('ocrText').textContent=state.job.ocrText;setDate(state.job.date,state.job.dateSource,state.job.dateNote);}
+ try{state.source=rotate(state.source,-90);state.corners=locateGrid(state.source,state.rows.length,state.times.length)?.corners||defaultCorners(state.source);state.selected=null;marks();state.job.sourceBlob=await sourceBlob(state.source);state.job.source=state.source;state.job.dateSource='';state.job.dateCropKey=null;await recognizeDate(state.job,progress);delete state.job.source;$('dateCrop').src=state.job.datePreview;$('ocrText').textContent=state.job.ocrText;setDate(state.job.date,state.job.dateSource,state.job.dateNote);}
  catch(e){message(e.message,true);}finally{delete state.job?.source;setBusy(false);renderBatch();}
 });
 $('rescanBtn').addEventListener('click',()=>{if(!state.source)return;marks();message('Marks reread for this page. Its previous manual edits were replaced.');});

@@ -1,5 +1,5 @@
 import {canvas} from './vision.js';
-import {dateCrop} from './date-crop.js';
+import {recognitionCrop} from './date-crop.js';
 import {readActivityDate} from './date-reader.js';
 let ocrWorker,handwritingWorker;
 function readHandwriting(crop,onProgress){return new Promise((resolve,reject)=>{
@@ -12,7 +12,9 @@ function readHandwriting(crop,onProgress){return new Promise((resolve,reject)=>{
  handwritingWorker.onerror=e=>{clearTimeout(timer);handwritingWorker?.terminate();handwritingWorker=null;reject(Error(e.message||'Handwriting reader could not start.'));};
  handwritingWorker.onmessage=({data})=>{
   if(data.progress!==undefined){arm();onProgress('Loading handwriting reader: '+data.progress+'% (about 65 MB on first use)…');return;}
-  clearTimeout(timer);data.error?reject(Error(data.error)):resolve(data.text);
+  clearTimeout(timer);
+  if(data.error){handwritingWorker?.terminate();handwritingWorker=null;reject(Error(data.error));}
+  else resolve(data.text);
  };
  const data=crop.getContext('2d').getImageData(0,0,crop.width,crop.height);handwritingWorker.postMessage({width:crop.width,height:crop.height,pixels:data.data.buffer},[data.data.buffer]);
 });}
@@ -23,7 +25,7 @@ async function readText(crop,mode){
 }
 async function recognize(job,onProgress){
  if(!job.source)return;
- const crop=dateCrop(job.source,job.corners,job.rows.length);job.datePreview=crop.toDataURL('image/jpeg',.9);
+ const crop=await recognitionCrop(job);
  await readActivityDate(job,{
   handwriting:()=>{onProgress('Reading handwriting above the table (first use downloads about 65 MB)…');return readHandwriting(crop,onProgress);},
   retryHandwriting:()=>{
