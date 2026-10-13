@@ -1,13 +1,13 @@
-import {cloud,loadDays,saveDays,archiveDay,check} from './cloud.js?v=20261012-5';
-import {planSave,parseBackup,localToday} from './records.js?v=20261012-5';
-import {totals} from './core.js?v=20261012-5';
-import {createDashboard} from './dashboard.js?v=20261012-5';
+import {cloud,loadDays,saveDays,archiveDay,check} from './cloud.js?v=20261013-1';
+import {planSave,parseBackup,localToday} from './records.js?v=20261013-1';
+import {totals} from './core.js?v=20261013-1';
+import {createDashboard} from './dashboard.js?v=20261013-1';
 const $=id=>document.getElementById(id);
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 export function createLibrary({edit,importDays,changed}) {
   let session=null,records=[],generation=0,loading=false,lastRefresh=0;
   const notice=(text,error=false)=>{$('cloudMessage').textContent=text;$('cloudMessage').classList.toggle('error',error);};
-  const dashboard=createDashboard({edit:r=>edit({...r,owner:session?.user.id}),archive:async(r,on)=>{try{await archiveDay(r,on);await refresh();notice(on?'Day archived. Use “Show archived days” to restore it.':'Day restored.');}catch(e){notice(e.message,true);}}});
+  const dashboard=createDashboard({edit:r=>edit({...r,owner:session?.user.id}),archive:async(r,on)=>{try{const owner=session?.user.id;const saved=await archiveDay(r,on);if(owner!==session?.user.id)return;records=records.map(day=>day.date===saved.date?saved:day);dashboard.setRecords(records);await refresh(true);notice(on?'Day archived. Use “Show archived days” to restore it.':'Day restored.');}catch(e){notice(e.message,true);}}});
   function show(view){$('scanView').hidden=view!=='scan';$('dashboardView').hidden=view!=='dashboard';$('scanTab').setAttribute('aria-selected',view==='scan');$('dashboardTab').setAttribute('aria-selected',view==='dashboard');if(view==='dashboard')refresh();}
   $('scanTab').addEventListener('click',()=>show('scan'));$('dashboardTab').addEventListener('click',()=>show('dashboard'));$('beginScan').addEventListener('click',()=>show('scan'));
   async function refresh(force=false) {
@@ -62,7 +62,7 @@ export function createLibrary({edit,importDays,changed}) {
     if(owner!==session?.user.id)throw Error('Your sign-in changed. Review the batch again.');
     const saved=await saveDays(plan);
     for(const job of jobs){const record=saved.find(r=>r.date===job.date);job.savedRevision=record.revision;job.savedDate=record.date;job.savedOwner=owner;}
-    await refresh(true);notice(`Saved ${saved.length} ${saved.length===1?'day':'days'}. They are available on your other devices with the same sign-in.`);return true;
+    await refresh(true);notice(`Saved ${saved.length} ${saved.length===1?'day':'days'}. Available on your other devices with the same sign-in.`);return true;
   }
   return {save,show,refresh,signedIn:()=>!!session};
 }

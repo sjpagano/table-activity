@@ -1,5 +1,5 @@
-import {summarize,weekStart,dayOffset,localToday,timeMinute,timeLabel} from './records.js?v=20261012-5';
-import {weekday,totals} from './core.js?v=20261012-5';
+import {summarize,weekStart,dayOffset,localToday,timeMinute,timeLabel} from './records.js?v=20261013-1';
+import {weekday,totals} from './core.js?v=20261013-1';
 const $=id=>document.getElementById(id);
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const pretty=date=>new Date(date+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
@@ -20,7 +20,8 @@ export function createDashboard({edit,archive}) {
     const peak=summary.hours.filter(h=>h.marks>0).sort((a,b)=>b.average-a.average||ordered(a.minute)-ordered(b.minute))[0];
     $('statDays').textContent=summary.days.length;$('statMarks').textContent=summary.marks.toLocaleString();$('statOccupancy').textContent=rate(summary.occupancy);
     $('statPeak').textContent=peak?timeLabel(peak.minute):'—';
-    $('peakNote').textContent=peak?`${peak.average.toFixed(1)} active tables on average`:'No marked observations';
+    const tied=peak?summary.hours.filter(h=>Math.abs(h.average-peak.average)<1e-9).length:0;
+    $('peakNote').textContent=peak?`${peak.average.toFixed(1)} active tables on average${tied>1?` · ${tied} hours tied`:''}`:'No marked observations';
     $('rangeNote').textContent=`${$('period').value==='all'?'All saved dates':'Selected week'} · ${summary.observations} observations · Times after midnight belong to the date on the sheet.`;
     $('clearDay').hidden=!selectedDay;$('hourTitle').textContent=selectedDay?`Hours on ${weekday(selectedDay)}, ${pretty(selectedDay)}`:'Activity by hour';
     const metric=$('chartMetric').value;

@@ -1,10 +1,10 @@
-import './compatibility.js?v=20261012-5';
-import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday,exifDate} from './core.js?v=20261012-5';
-import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261012-5';
-import {recognizeDate} from './recognition.js?v=20261012-5';
-import {createLibrary} from './library.js?v=20261012-5';
-import {timeMinute} from './records.js?v=20261012-5';
-import {batchSummary,canReview,changeDate,toggleMark,saveEditorChanges} from './batch.js?v=20261012-5';
+import './compatibility.js?v=20261013-1';
+import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday,exifDate} from './core.js?v=20261013-1';
+import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261013-1';
+import {recognizeDate} from './recognition.js?v=20261013-1';
+import {createLibrary} from './library.js?v=20261013-1';
+import {timeMinute} from './records.js?v=20261013-1';
+import {batchSummary,canReview,changeDate,toggleMark,saveEditorChanges} from './batch.js?v=20261013-1';
 const $=id=>document.getElementById(id);
 const jobs=[];
 let nextId=1,processing=false,exporting=false,exported=false,activeId=null,selectionToken=0;
@@ -26,7 +26,7 @@ function renderActiveDate(){
  if($('activityDate').value!==(date||''))$('activityDate').value=date||'';
  state.dateSource=dateSource;$('dateNote').textContent=dateNote||'';
  $('dateNote').classList.toggle('fallback',['metadata','suggestion'].includes(dateSource));$('weekday').textContent=weekday(date)||'—';
- $('ocrText').textContent=`App version: 20261012-5\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
+ $('ocrText').textContent=`App version: 20261013-1\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
 }
 function updateExport(){
  renderActiveDate();
@@ -129,7 +129,7 @@ async function processQueue(){
    if(job.file.size>25*1024*1024)throw Error('This file is larger than 25 MB. Remove it or choose a smaller copy.');
    let source;
    if(job.file.type==='application/pdf'||/\.pdf$/i.test(job.file.name)){
-    if(pdfFile!==job.file){if(pdf)await pdf.destroy();pdf=null;pdfFile=null;const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./pdf-worker.js?v=20261012-5',location.href).href;pdf=await pdfjs.getDocument({data:new Uint8Array(await job.file.arrayBuffer()),isEvalSupported:false}).promise;pdfFile=job.file;}
+    if(pdfFile!==job.file){if(pdf)await pdf.destroy();pdf=null;pdfFile=null;const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./pdf-worker.js?v=20261013-1',location.href).href;pdf=await pdfjs.getDocument({data:new Uint8Array(await job.file.arrayBuffer()),isEvalSupported:false}).promise;pdfFile=job.file;}
     job.pdfInfo=(await pdf.getMetadata()).info;
     if(!job.expanded){job.expanded=true;job.pageCount=pdf.numPages;const rest=[];for(let p=2;p<=pdf.numPages;p++)rest.push({...newJob(job.file),page:p,pageCount:pdf.numPages,expanded:true,rows:[...job.rows],times:[...job.times]});jobs.splice(index+1,0,...rest);renderBatch(false);}
     const page=await pdf.getPage(job.page),base=page.getViewport({scale:1}),viewport=page.getViewport({scale:2200/Math.max(base.width,base.height)});source=canvas(Math.ceil(viewport.width),Math.ceil(viewport.height));await page.render({canvasContext:source.getContext('2d'),viewport}).promise;try{job.pdfText=(await page.getTextContent()).items.map(t=>t.str).join(' ');}catch(e){job.pdfText='';job.pdfTextError=e.message;}page.cleanup();
@@ -181,7 +181,7 @@ $('applyLayout').addEventListener('click',()=>{const rows=$('rowLabels').value.s
 $('manualBtn').addEventListener('click',()=>{const job=newJob();Object.assign(job,{status:'ready',dateSource:'manual',dateNote:'Enter the activity date, then tap cells to add X’s.',grid:blankGrid(job.rows.length,job.times.length)});jobs.push(job);exported=false;renderBatch();selectJob(job.id);});
 $('exportBtn').addEventListener('click',async()=>{
  saveActive();if($('exportBtn').disabled||!batchSummary(jobs).canExport)return;exporting=true;updateExport();progress('Saving reviewed days…',90);
- try{const saved=await library.save(jobs);if(saved){exported=true;message(`Saved ${jobs.length} days. Open Activity to see the charts.`);}else message('Save cancelled. Your reviewed scans are still here.');}
+ try{const saved=await library.save(jobs);if(saved){exported=true;message(`Saved ${jobs.length} ${jobs.length===1?'day':'days'}. Open Activity to see the charts.`);}else message('Save cancelled. Your reviewed scans are still here.');}
  catch(e){message('Save failed: '+e.message,true);}finally{exporting=false;$('progressWrap').hidden=true;renderBatch();}
 });
 $('clearScans').addEventListener('click',()=>{if(processing||state.busy||exporting)return;if(!exported&&jobs.length&&!confirm('Clear these unsaved scans? Saved database records will be kept.'))return;state.job=null;activeId=null;jobs.splice(0);exported=true;showOverview();message('Scans cleared.');});
@@ -196,7 +196,7 @@ function addRecords(records,editing=false){
 }
 library=createLibrary({edit:record=>addRecords([record],true),importDays:records=>addRecords(records),changed:updateExport});
 window.addEventListener('beforeunload',e=>{if(jobs.length&&!exported){e.preventDefault();e.returnValue='';}});
-if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261012-5').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261013-1').catch(()=>{});
 const gridScroller=$('activityGrid').parentElement;
 function syncGridScroll(){const max=gridScroller.scrollWidth-gridScroller.clientWidth;$('gridPosition').value=max>0?Math.round(gridScroller.scrollLeft/max*1000):0;$('gridPosition').disabled=max<=0;const index=Math.max(0,Math.min(state.times.length-1,Math.round(gridScroller.scrollLeft/49)));$('scrollPosition').textContent=state.times[index]||'';}
 $('gridPosition').addEventListener('input',e=>{gridScroller.scrollLeft=+e.target.value/1000*(gridScroller.scrollWidth-gridScroller.clientWidth);syncGridScroll();});
