@@ -1,4 +1,4 @@
-import {handwritingDate,parseDates,metadataDate,isISODate} from './core.js?v=20261012-3';
+import {handwritingDate,parseDates,metadataDate,isISODate} from './core.js?v=20261012-4';
 
 export function metadataFallback(job){
  const creation=metadataDate(job.pdfInfo?.CreationDate),modified=metadataDate(job.pdfInfo?.ModDate);
