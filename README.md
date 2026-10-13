@@ -1,57 +1,54 @@
-# Table activity
+# Table Activity
 
-A personal browser app for converting table activity photos and PDFs into editable Excel worksheets.
+Personal scan review and activity dashboard, hosted on GitHub Pages.
+
+Live app: https://sjpagano.github.io/table-activity/
 
 ## Use
 
-1. Optionally select an existing `.xlsx` workbook. Its blank activity tab is selected as the layout when available.
-2. Select multiple photos and PDFs together, or drag them onto Add files. Every PDF page is included automatically. On a phone, you can also take a photo. More files can be added after the current batch finishes reading.
-3. Review all pages together in the batch overview. Each card shows the date crop, editable date, score and editable X grid, with a permanent horizontal scroll control. Completed pages can be reviewed while the remaining pages are still reading.
-4. Select Open scan for a larger original, cell close-ups, Undo, rotation or corner alignment. Corrections are retained when switching scans. Mark reviewed & next moves to the next unfinished page. Rereading marks replaces corrections on that page only.
-5. Mark pages Reviewed individually, or confirm I have checked all dates and marks after checking the overview. Editing a page clears that page's reviewed status. Failed files can be retried or removed; they are never silently omitted from export.
-6. Download Excel once. The downloaded workbook contains one new dated tab per page, in upload/page order, with existing tabs preserved. Repeated dates receive numbered suffixes instead of replacing any tab.
+1. Create your app sign-in with your email and password; confirm the email. Use the same sign-in on your phone and PC.
+2. Add multiple photos or PDFs in **Scan & review**. Each PDF page becomes a review card.
+3. Check the handwritten M/D/Y date and tap any cell to correct an X. The scanned date takes priority over file metadata.
+4. Mark pages reviewed and save the batch. One day is stored per account and date, including every blank cell. Existing dates require explicit replacement approval; changes on another device are detected.
+5. Open **Activity**. Browse weeks, choose tables and time ranges, inspect hourly activity, daily totals, weekday occupancy, and a weekly heatmap. Tap a day for its hourly chart. Select **All saved dates** for long-term weekday patterns.
+6. Open a saved day to edit its marks. Archive incorrect days, or restore them using **Show archived days**. Download JSON backups under **Backup & restore**.
 
-Use Safari’s Share → Add to Home Screen on iPhone, or bookmark/install the site in a desktop browser. No Apple developer account or subscription is needed.
+Missing days are not counted as zero. Occupancy is marked cells divided by recorded table/time cells. Hourly active tables are averaged across recorded observations. X counts are observations, not distinct visitors. Post-midnight times belong to the date on the sheet.
 
-## Recognition
+## Storage and cost
 
-The default layout has tables 3, 5, 6, 7, 8 and 9, with 36 half-hour columns from 11 a.m. through 4:30 a.m. Custom labels and workbook layouts are supported. Layout changes apply to files added next; existing pages keep their layouts and corrections. Pages matching the selected workbook template use its formatting; other layouts use the standard export format.
+The static app runs on GitHub Pages. Supabase provides the shared Postgres database and email/password authentication. The configured project uses the Free plan. Its published limits currently include 500 MB database space, 5 GB egress, and pausing after one week of inactivity. Resume paused projects in the Supabase dashboard. There is no App Store distribution or iOS developer subscription.
 
-Date crops are stored as lossless PNGs, so opening the JPEG review preview does not change the input used by Read date again. Rotation or a change to grid corners invalidates the saved crop.
+Only structured records are uploaded when Save is selected; source photos/PDFs are used for review and are not stored in the database. Scanning works in the browser. The first handwriting scan downloads approximately 65 MB of model files. Unsaved scans are held in memory; save before closing or refreshing the page.
 
-Pages are read sequentially with one reused handwriting model, so ten scans do not start ten model downloads. Only the active editor and processing page need full-size canvases; other page previews are stored as compressed images in memory. The entire Excel archive is assembled once per download. Very large batches still depend on the device's available memory.
+The free built-in auth email service sends only to the Supabase project's team email addresses and currently permits two emails per hour. This personal app should use the same email as the project account. More users would require configuring an email provider. Never turn off row security to work around a sign-in error.
 
-The app reads the scanned handwriting above the table first, retries uncertain readings with extra image padding, then tries printed-text OCR and embedded PDF text. A reader error also triggers one automatic retry with a fresh worker before fallback. Metadata is used only if no document date can be read. Activity dates are always M/D/Y with slash separators. OCR confusions such as `10( 8126` or `1018126` are interpreted using that structure, without changing any numeric date digits. A unique valid date can be used even if no weekday was recognized; the weekday helps resolve alternatives when possible. Ambiguous alternatives are not guessed. A clear date with a conflicting weekday remains a visibly flagged suggestion instead of being discarded for metadata. Previously scanned dates survive a failed reread, and manual corrections remain authoritative until you explicitly choose Read date again. Numeric dates use month/day/year. Two-digit years 00–69 mean 2000–2069; 70–99 mean 1970–1999. A year is never inferred from the workbook.
+## Project setup
 
-The recognized date is stored on the scan itself. The review field, weekday, batch card and Excel export all use that value; saving grid edits or review status cannot overwrite it with a stale metadata date. Only an explicit date edit or another completed recognition changes it. Application modules use matching revision URLs so a refreshed page does not mix cached code from different deployments.
+The current project has already been initialized. For another installation:
 
-If no date can be read, the fallback order is PDF creation/modification date, photo EXIF date, then file modification date. Metadata can be the scanning date rather than the activity date. Every date remains editable.
+- Create a Supabase Free project and run `database/schema.sql` in its SQL Editor.
+- Set its Auth Site URL to your deployed app URL.
+- Change `config.js` to the project URL and **publishable** key. Never put database passwords or secret/service-role keys in this repository.
+- Email confirmation is enabled. Create your app sign-in using your project team email, confirm it, and sign in from each device.
 
-The handwriting reader downloads approximately 65 MB of model files from Hugging Face on first use and caches them in the browser. Recognition runs locally in a worker; documents are not sent to an OCR service. The app's supporting runtime adds approximately 30 MB to its static download. After caching, it can work offline, subject to browser storage eviction. If the model is unavailable, printed OCR and manual date entry still work. Model download progress resets the idle timeout so slow active downloads are not cut off after two minutes. Any metadata fallback and reader failure is stated directly on the review card.
+The table stores a boolean matrix, ordered table labels, ordered times, source name, date source, revision and archive state. RLS limits reads to the signed-in owner. Only authenticated, owner-scoped functions can write. Batch saves are atomic and compare revisions. The public key provides no anonymous access to records. All original documents remain outside this source repository.
 
-Recognition is fallible. Review all marks and the date, especially faint strokes, crossed-out cells, shadows or warped photos. The supplied test scan produced the correct October 8, 2026 / Thursday suggestion and all 67 X marks; this is a single sample, not an accuracy guarantee. Amber cell underlines indicate borderline ink detection, not calibrated confidence.
+## Local preview and checks
 
-## Excel
+```
+node server.mjs
+node --test tests/*.test.mjs
+```
 
-- Date and weekday above the grid; X or blank in each activity cell.
-- Live COUNTIF row/column totals and a SUM grand total, with cached results for previewers.
-- Compatible templates retain row heights, column widths, cell styles and zoom so large template fonts are not clipped.
-- Existing worksheets, charts and pivot parts are preserved. Summary/pivot ranges are not automatically extended to include a new tab.
-- Only `.xlsx` is supported. Password-protected, digitally signed and macro workbooks are unsupported. Inputs are limited to 25 MB.
-- Template discovery expects “Table Number” in A2, table labels starting A3 and times starting B2. Manual layouts support 1–40 rows and 8–72 time columns.
+The preview serves http://127.0.0.1:4173/. For authentication emails in development, explicitly allow that redirect URL in the Supabase project settings.
 
-## Hosting and development
+`database/verify.sql` verifies owner isolation, stored blanks, stale revisions, all-or-nothing saves, archive/restore and anonymous denial using fixtures inside a rolled-back transaction. It was run successfully against the configured database. No test users or days remain from it.
 
-This is a static site: no API key, database or application server is required. GitHub Pages can serve the published repository's root from its `main` branch. The app code is public; uploaded scans and workbooks are not stored in the repository.
-
-In the portable source package, `dist/` contains the website. Run `node server.mjs` and visit `http://127.0.0.1:4173`. Opening HTML directly with `file://` cannot run its workers reliably.
-
-Run `node tests/core.test.mjs`, `node tests/date-reader.test.mjs`, `node tests/date-format.test.mjs` and `node tests/batch.test.mjs` for date parsing, totals, independent corrections, review/export gates and template selection. Browser checks covered a mixed ten-page batch, multi-page PDFs, failed-file removal, correction/undo, review navigation, worksheet append, duplicate dates, permanent scrolling and a 390px viewport. The exported ten tabs were checked for formulas, cached totals, formatting and preservation of original workbook parts. Actual iPhone hardware has not been tested.
+The phone compatibility module supplies ReadableStream asynchronous iteration when absent, both in the page and workers. PDF text-layer failures also fall back to recognition of the rendered image.
 
 ## Dependencies
 
-Vendored: Tesseract.js 7.0.0 and English OCR data, PDF.js 5.6.205, JSZip, Transformers.js 3.8.1 and its ONNX WebAssembly runtime. License files are in `vendor/` (or `dist/vendor/` in the source package).
+Vendored Supabase JavaScript client 2.117.3 (MIT), bundled with esbuild 0.28.2 for Safari 15+. Existing scanner dependencies: PDF.js, Tesseract.js, Transformers.js, ONNX Runtime and the pinned Xenova/trocr-small-handwritten model. Vendor license files are included. The legacy Excel module is retained in source for compatibility but is no longer part of the app workflow.
 
-The handwriting model is [Xenova/trocr-small-handwritten](https://huggingface.co/Xenova/trocr-small-handwritten), converted from [Microsoft TrOCR](https://huggingface.co/microsoft/trocr-small-handwritten), pinned to revision `2432e24d184b1d964d07ed04f5d9e21d31a59141`. Model downloads use Hugging Face; no paid inference endpoint is used.
-
-Current edits are held in memory. Download before closing the page. There is no cross-device sync.
+Sources: https://supabase.com/pricing and https://supabase.com/docs/guides/auth/auth-smtp
