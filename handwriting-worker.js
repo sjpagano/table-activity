@@ -1,4 +1,4 @@
-import './compatibility.js?v=20261013-1';
+import './compatibility.js?v=20261013-2';
 import {pipeline,env,RawImage} from './vendor/transformers.min.js';
 env.allowLocalModels=false;
 env.backends.onnx.wasm.wasmPaths=new URL('./vendor/',self.location.href).href;

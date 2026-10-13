@@ -1,7 +1,7 @@
-import {cloud,loadDays,saveDays,archiveDay,check} from './cloud.js?v=20261013-1';
-import {planSave,parseBackup,localToday} from './records.js?v=20261013-1';
-import {totals} from './core.js?v=20261013-1';
-import {createDashboard} from './dashboard.js?v=20261013-1';
+import {cloud,loadDays,saveDays,archiveDay,check} from './cloud.js?v=20261013-2';
+import {planSave,parseBackup,localToday} from './records.js?v=20261013-2';
+import {totals} from './core.js?v=20261013-2';
+import {createDashboard} from './dashboard.js?v=20261013-2';
 const $=id=>document.getElementById(id);
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 export function createLibrary({edit,importDays,changed}) {

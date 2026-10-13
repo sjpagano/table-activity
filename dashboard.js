@@ -1,5 +1,5 @@
-import {summarize,weekStart,dayOffset,localToday,timeMinute,timeLabel} from './records.js?v=20261013-1';
-import {weekday,totals} from './core.js?v=20261013-1';
+import {summarize,weekStart,dayOffset,localToday,timeMinute,timeLabel} from './records.js?v=20261013-2';
+import {weekday,totals} from './core.js?v=20261013-2';
 const $=id=>document.getElementById(id);
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const pretty=date=>new Date(date+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
