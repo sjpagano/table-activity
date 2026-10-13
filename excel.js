@@ -1,4 +1,4 @@
-import {colName,excelSerial,uniqueSheetName,weekday,totals,isISODate} from './core.js?v=20261013-2';
+import {colName,excelSerial,uniqueSheetName,weekday,totals,isISODate} from './core.js?v=20261013-3';
 const NS='http://schemas.openxmlformats.org/spreadsheetml/2006/main',RNS='http://schemas.openxmlformats.org/officeDocument/2006/relationships',PNS='http://schemas.openxmlformats.org/package/2006/relationships';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const parse=s=>{const d=new DOMParser().parseFromString(s,'application/xml');if(d.getElementsByTagName('parsererror').length)throw Error('This workbook contains invalid XML.');return d;};
