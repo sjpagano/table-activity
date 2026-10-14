@@ -1,10 +1,11 @@
-import './compatibility.js?v=20261013-3';
-import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday,exifDate} from './core.js?v=20261013-3';
-import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261013-3';
-import {recognizeDate} from './recognition.js?v=20261013-3';
-import {createLibrary} from './library.js?v=20261013-3';
-import {timeMinute} from './records.js?v=20261013-3';
-import {batchSummary,canReview,changeDate,toggleMark,saveEditorChanges} from './batch.js?v=20261013-3';
+import './compatibility.js?v=20261013-4';
+import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday,exifDate} from './core.js?v=20261013-4';
+import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261013-4';
+import {recognizeDate} from './recognition.js?v=20261013-4';
+import {createLibrary} from './library.js?v=20261013-4';
+import {timeMinute} from './records.js?v=20261013-4';
+import {batchSummary,canReview,changeDate,toggleMark,saveEditorChanges} from './batch.js?v=20261013-4';
+import {createCamera} from './camera.js?v=20261013-4';
 const $=id=>document.getElementById(id);
 const jobs=[];
 let nextId=1,processing=false,exporting=false,exported=false,activeId=null,selectionToken=0;
@@ -26,7 +27,7 @@ function renderActiveDate(){
  if($('activityDate').value!==(date||''))$('activityDate').value=date||'';
  state.dateSource=dateSource;$('dateNote').textContent=dateNote||'';
  $('dateNote').classList.toggle('fallback',['metadata','suggestion'].includes(dateSource));$('weekday').textContent=weekday(date)||'—';
- $('ocrText').textContent=`App version: 20261013-3\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
+ $('ocrText').textContent=`App version: 20261013-4\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
 }
 function updateExport(){
  renderActiveDate();
@@ -36,7 +37,7 @@ function updateExport(){
  $('exportHint').textContent=summary.total?`${summary.reviewed} of ${summary.total} pages reviewed${summary.pending?' · '+summary.pending+' still reading':''}${summary.failed?' · remove or retry '+summary.failed+' failed '+(summary.failed===1?'page':'pages'):''}. ${library?.signedIn()?'':'Sign in to save.'}`:'Add scans to begin.';
  $('reviewAll').checked=summary.canExport;
  $('reviewAll').disabled=processing||locked||state.aligning||summary.ready!==summary.total||!summary.total;
- for(const id of ['scanFile','cameraFile','manualBtn'])$(id).disabled=processing||locked;
+ for(const id of ['scanFile','cameraFile','openCamera','manualBtn'])$(id).disabled=processing||locked;
  for(const id of ['applyLayout','rowLabels','timeLabels','clearScans'])$(id).disabled=processing||locked;
  for(const id of ['retryDate','rotateBtn','rescanBtn','alignBtn','sensitivity','activityDate','undoBtn','reviewed','reviewNext'])$(id).disabled=locked||!state.job||state.job.status!=='ready';
  $('activityDate').disabled=locked||!state.job||!!state.job.savedDate;
@@ -129,7 +130,7 @@ async function processQueue(){
    if(job.file.size>25*1024*1024)throw Error('This file is larger than 25 MB. Remove it or choose a smaller copy.');
    let source;
    if(job.file.type==='application/pdf'||/\.pdf$/i.test(job.file.name)){
-    if(pdfFile!==job.file){if(pdf)await pdf.destroy();pdf=null;pdfFile=null;const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./pdf-worker.js?v=20261013-3',location.href).href;pdf=await pdfjs.getDocument({data:new Uint8Array(await job.file.arrayBuffer()),isEvalSupported:false}).promise;pdfFile=job.file;}
+    if(pdfFile!==job.file){if(pdf)await pdf.destroy();pdf=null;pdfFile=null;const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./pdf-worker.js?v=20261013-4',location.href).href;pdf=await pdfjs.getDocument({data:new Uint8Array(await job.file.arrayBuffer()),isEvalSupported:false}).promise;pdfFile=job.file;}
     job.pdfInfo=(await pdf.getMetadata()).info;
     if(!job.expanded){job.expanded=true;job.pageCount=pdf.numPages;const rest=[];for(let p=2;p<=pdf.numPages;p++)rest.push({...newJob(job.file),page:p,pageCount:pdf.numPages,expanded:true,rows:[...job.rows],times:[...job.times]});jobs.splice(index+1,0,...rest);renderBatch(false);}
     const page=await pdf.getPage(job.page),base=page.getViewport({scale:1}),viewport=page.getViewport({scale:2200/Math.max(base.width,base.height)});source=canvas(Math.ceil(viewport.width),Math.ceil(viewport.height));await page.render({canvasContext:source.getContext('2d'),viewport}).promise;try{job.pdfText=(await page.getTextContent()).items.map(t=>t.str).join(' ');}catch(e){job.pdfText='';job.pdfTextError=e.message;}page.cleanup();
@@ -156,6 +157,8 @@ $('activityDate').addEventListener('input',()=>setDate($('activityDate').value,'
 $('reviewed').addEventListener('change',()=>{saveActive();exported=false;renderCard(state.job);updateExport();});
 $('reviewAll').addEventListener('change',()=>{const checked=$('reviewAll').checked;saveActive();for(const job of jobs)job.reviewed=checked&&canReview(job);if(state.job)$('reviewed').checked=state.job.reviewed;exported=false;renderBatch();});
 for(const id of ['scanFile','cameraFile'])$(id).addEventListener('change',e=>{const files=[...e.target.files];e.target.value='';addFiles(files);});
+const camera=createCamera({onFinish:files=>addFiles(files),canOpen:()=>!processing&&!state.busy&&!exporting});
+$('openCamera').addEventListener('click',()=>camera.open());
 $('dropzone').addEventListener('dragover',e=>{e.preventDefault();$('dropzone').classList.add('drag');});
 $('dropzone').addEventListener('dragleave',()=>$('dropzone').classList.remove('drag'));
 $('dropzone').addEventListener('drop',e=>{e.preventDefault();$('dropzone').classList.remove('drag');addFiles([...e.dataTransfer.files]);});
@@ -195,8 +198,8 @@ function addRecords(records,editing=false){
  exported=false;library.show('scan');showOverview();if(editing)selectJob(jobs.at(-1).id);
 }
 library=createLibrary({edit:record=>addRecords([record],true),importDays:records=>addRecords(records),changed:updateExport});
-window.addEventListener('beforeunload',e=>{if(jobs.length&&!exported){e.preventDefault();e.returnValue='';}});
-if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261013-3').catch(()=>{});
+window.addEventListener('beforeunload',e=>{if(jobs.length&&!exported||camera.hasCaptures()){e.preventDefault();e.returnValue='';}});
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261013-4').catch(()=>{});
 const gridScroller=$('activityGrid').parentElement;
 function syncGridScroll(){const max=gridScroller.scrollWidth-gridScroller.clientWidth;$('gridPosition').value=max>0?Math.round(gridScroller.scrollLeft/max*1000):0;$('gridPosition').disabled=max<=0;const index=Math.max(0,Math.min(state.times.length-1,Math.round(gridScroller.scrollLeft/49)));$('scrollPosition').textContent=state.times[index]||'';}
 $('gridPosition').addEventListener('input',e=>{gridScroller.scrollLeft=+e.target.value/1000*(gridScroller.scrollWidth-gridScroller.clientWidth);syncGridScroll();});
