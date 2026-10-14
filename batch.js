@@ -1,4 +1,4 @@
-import {isISODate} from './core.js?v=20261013-4';
+import {isISODate} from './core.js?v=20261013-5';
 export function canReview(job){return job.status==='ready'&&!!job.grid&&isISODate(job.date)&&!job.alignmentDirty;}
 export function batchSummary(jobs){
  const ready=jobs.filter(canReview).length,reviewed=jobs.filter(j=>canReview(j)&&j.reviewed).length;

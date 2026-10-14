@@ -22,9 +22,10 @@ assert.deepEqual(r.calls,['handwriting','retryHandwriting','text']);assert.equal
 r=await run({handwriting:'10/2/26 Thursday',retryHandwriting:'10/8/26 Thursday'});
 assert.equal(r.job.date,'2026-10-08');
 r=await run({});assert.equal(r.job.date,'2026-10-09');assert.equal(r.job.dateSource,'document');assert.match(r.job.dateNote,/embedded PDF/);
-r=await run({}, {...makeJob(),pdfText:''});assert.equal(r.job.date,'2026-10-09');assert.equal(r.job.dateSource,'metadata');assert.match(r.job.dateNote,/fallback/);
+r=await run({}, {...makeJob(),pdfText:''});assert.equal(r.job.date,'');assert.equal(r.job.dateSource,'');assert.match(r.job.dateNote,/Enter the activity date/);
+for(const metadata of [{pdfInfo:{CreationDate:'D:20261009'}},{photoDate:'2026-10-09'},{file:{lastModified:Date.now()}}]){r=await run({}, {...metadata,date:'2026-10-09',dateSource:'metadata'});assert.equal(r.job.date,'');assert.equal(r.job.dateSource,'');}
 r=await run({handwriting:new Error('Offline')},{...makeJob(),pdfText:''});assert.match(r.job.dateNote,/could not finish/);
 r=await run({handwriting:'10/8/26'},{...makeJob(),date:'2026-10-07',dateSource:'manual'});assert.equal(r.job.date,'2026-10-07');assert.equal(r.job.dateSource,'manual');
 r=await run({}, {...makeJob(),pdfText:'',date:'2026-10-08',dateSource:'suggestion'});assert.equal(r.job.date,'2026-10-08');assert.equal(r.job.dateSource,'suggestion');
 r=await run({}, {date:'',dateSource:''});assert.equal(r.job.date,'');assert.match(r.job.dateNote,/Enter the activity date/);
-console.log('Date priority checks passed: scan, retry, OCR, PDF text, metadata, errors and manual corrections.');
+console.log('Date checks passed: document readers, retries, no metadata fallback, errors and manual corrections.');

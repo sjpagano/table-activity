@@ -1,16 +1,6 @@
-import {handwritingDate,parseDates,metadataDate,isISODate} from './core.js?v=20261013-4';
+import {handwritingDate,parseDates,isISODate} from './core.js?v=20261013-5';
 
-export function metadataFallback(job){
- const creation=metadataDate(job.pdfInfo?.CreationDate),modified=metadataDate(job.pdfInfo?.ModDate);
- if(creation)return {date:creation,label:'PDF creation date'};
- if(modified)return {date:modified,label:'PDF modification date'};
- if(isISODate(job.photoDate))return {date:job.photoDate,label:'photo EXIF date'};
- if(job.file?.lastModified){const d=new Date(job.file.lastModified);if(!Number.isNaN(d.valueOf()))return {date:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,label:'file modification date'};}
- return null;
-}
-
-// Readers run in priority order. Metadata is consulted only after every
-// document reader fails, never as a competing candidate for an activity date.
+// Only text on the document can supply an activity date. Metadata is ignored.
 export async function readActivityDate(job,readers){
  const log=[],errors=[];let result=null,origin='';
  const attempt=async(label,read,strict=false)=>{
@@ -36,8 +26,8 @@ export async function readActivityDate(job,readers){
  }else if(['document','suggestion'].includes(job.dateSource)&&isISODate(job.date)){
   job.dateNote='Could not read the date again. Kept the previously scanned date; check the crop.';
  }else{
-  const metadata=metadataFallback(job);job.date=metadata?.date||'';job.dateSource=metadata?'metadata':'';
+  job.date='';job.dateSource='';
   const reason=errors.length?'A date reader could not finish.':'No valid date was recognized in the scan.';
-  job.dateNote=metadata?`${reason} Using ${metadata.label} (${metadata.date}) as a fallback. Check the crop; this may be the scanning date. Open the scan to retry.`:`${reason} Enter the activity date from the crop.`;
+  job.dateNote=`${reason} Enter the activity date from the crop.`;
  }
 }

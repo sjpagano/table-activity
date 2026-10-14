@@ -1,9 +1,9 @@
-import {canvas} from './vision.js?v=20261013-4';
-import {recognitionCrop} from './date-crop.js?v=20261013-4';
-import {readActivityDate} from './date-reader.js?v=20261013-4';
+import {canvas} from './vision.js?v=20261013-5';
+import {recognitionCrop} from './date-crop.js?v=20261013-5';
+import {readActivityDate} from './date-reader.js?v=20261013-5';
 let ocrWorker,handwritingWorker;
 function readHandwriting(crop,onProgress){return new Promise((resolve,reject)=>{
- if(!handwritingWorker)handwritingWorker=new Worker(new URL('./handwriting-worker.js?v=20261013-4',import.meta.url),{type:'module'});
+ if(!handwritingWorker)handwritingWorker=new Worker(new URL('./handwriting-worker.js?v=20261013-5',import.meta.url),{type:'module'});
  let timer;
  const timeout=()=>{handwritingWorker?.terminate();handwritingWorker=null;reject(Error('Handwriting reader timed out. Check your connection and try Read date again.'));};
  // Reset the idle timeout during the first model download, which can take
@@ -26,20 +26,21 @@ async function readText(crop,mode){
 async function recognize(job,onProgress){
  if(!job.source)return;
  const crop=await recognitionCrop(job);
- await readActivityDate(job,{
+ try{await readActivityDate(job,{
   handwriting:()=>{onProgress('Reading handwriting above the table (first use downloads about 65 MB)…');return readHandwriting(crop,onProgress);},
-  retryHandwriting:()=>{
+  retryHandwriting:async()=>{
    onProgress('Checking the scanned date again…');
    const pad=Math.ceil(crop.height*.18),retry=canvas(crop.width+2*pad,crop.height+2*pad),ctx=retry.getContext('2d');
    ctx.fillStyle='#fff';ctx.fillRect(0,0,retry.width,retry.height);ctx.drawImage(crop,pad,pad);
-   return readHandwriting(retry,onProgress);
+   try{return await readHandwriting(retry,onProgress);}finally{retry.width=retry.height=1;}
   },
   text:()=>{onProgress('Reading date text above the table…');return readText(crop,'7');},
-  header:()=>{
+  header:async()=>{
    const top=Math.max(80,Math.min(job.source.height*.45,Math.min(...job.corners.map(p=>p.y))));
-   const header=canvas(job.source.width,Math.ceil(top));header.getContext('2d').drawImage(job.source,0,0);return readText(header,'11');
+   const header=canvas(job.source.width,Math.ceil(top));header.getContext('2d').drawImage(job.source,0,0);try{return await readText(header,'11');}finally{header.width=header.height=1;}
   }
- });
+ });}finally{crop.width=crop.height=1;}
 }
 let queue=Promise.resolve();
 export function recognizeDate(job,onProgress=()=>{}){const task=queue.then(()=>recognize(job,onProgress));queue=task.catch(()=>{});return task;}
+export function releaseRecognition(){const task=queue.then(async()=>{handwritingWorker?.terminate();handwritingWorker=null;const old=ocrWorker;ocrWorker=null;await old?.terminate().catch(()=>{});});queue=task.catch(()=>{});return task;}

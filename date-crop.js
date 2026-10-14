@@ -1,15 +1,21 @@
-import {canvas} from './vision.js?v=20261013-4';
+import {canvas} from './vision.js?v=20261013-5';
 
 // Keep the small date crop losslessly. The full review image is a JPEG to
 // conserve batch memory; recomputing the crop from it changes OCR input.
 export async function recognitionCrop(job){
  const key=JSON.stringify([job.corners,job.rows.length]);
  if(job.dateCropKey===key&&job.datePreview){
-  const image=new Image();image.src=job.datePreview;await image.decode();
-  const saved=canvas(image.naturalWidth,image.naturalHeight);saved.getContext('2d').drawImage(image,0,0);return saved;
+  const image=new Image(),url=job.dateCropBlob?URL.createObjectURL(job.dateCropBlob):null;
+  try{image.src=url||job.datePreview;await image.decode();const saved=canvas(image.naturalWidth,image.naturalHeight);saved.getContext('2d').drawImage(image,0,0);return saved;}
+  finally{image.src='';if(url)URL.revokeObjectURL(url);}
  }
  const crop=dateCrop(job.source,job.corners,job.rows.length);
- job.datePreview=crop.toDataURL('image/png');job.dateCropKey=key;
+ try{
+  job.dateCropBlob=await new Promise(resolve=>crop.toBlob(resolve,'image/png'));
+  const scale=Math.min(1,640/crop.width),preview=canvas(Math.max(1,Math.round(crop.width*scale)),Math.max(1,Math.round(crop.height*scale)));
+  try{preview.getContext('2d').drawImage(crop,0,0,preview.width,preview.height);job.datePreview=preview.toDataURL('image/png');job.dateCropKey=key;}
+  finally{preview.width=preview.height=1;}
+ }catch(error){crop.width=crop.height=1;throw error;}
  return crop;
 }
 
@@ -37,5 +43,6 @@ export function dateCrop(source,corners,rowCount){
  x0=Math.max(0,x0-8);y0=Math.max(0,y0-8);x1=Math.min(w,x1+9);y1=Math.min(h,y1+9);
  const out=canvas((x1-x0)*3,(y1-y0)*3);
  out.getContext('2d').drawImage(band,x0,y0,x1-x0,y1-y0,0,0,out.width,out.height);
+ band.width=band.height=1;
  return out;
 }
