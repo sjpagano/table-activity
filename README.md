@@ -16,6 +16,10 @@ Live app: https://sjpagano.github.io/table-activity/
 
 Missing days are not counted as zero. Occupancy is marked cells divided by recorded table/time cells. Hourly active tables are averaged across recorded observations. X counts are observations, not distinct visitors. Post-midnight times belong to the date on the sheet.
 
+The scanner finds the printed table rules and follows camera tilt and perspective, excluding time headings and table labels. It removes printed rules before classifying handwritten marks. If it cannot locate a complete table reliably, it leaves the cells blank and requires alignment before review or saving. Open **Scan adjustments & recognition details**, choose **Adjust grid corners**, tap the four corners of the data cells in the indicated order, then **Read marks again**. Keep the whole table in the photo, with readable lines and marks.
+
+For existing drafts read by the older detector, open the scan and choose **Find table again**. This keeps the date, rechecks alignment, replaces previous X corrections, and requires another review. The same control remains available under scan adjustments. Recognition is still an aid: compare the overlay with the paper before saving.
+
 ## Storage and cost
 
 The static app runs on GitHub Pages. Supabase provides the shared Postgres database and email/password authentication. The configured project uses the Free plan. Its published limits currently include 500 MB database space, 5 GB egress, and pausing after one week of inactivity. Resume paused projects in the Supabase dashboard. There is no App Store distribution or iOS developer subscription.

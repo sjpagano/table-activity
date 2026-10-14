@@ -10,6 +10,9 @@ toggleMark(batch[1],0,1);assert.equal(batch[1].grid[0][1],true);assert.equal(bat
 batch[2].status='error';assert.equal(batchSummary(batch).failed,1);assert.equal(batchSummary(batch).canExport,false);
 batch[3].status='processing';assert.equal(batchSummary(batch).pending,1);
 batch[4].alignmentDirty=true;assert.equal(canReview(batch[4]),false);
+batch[5].gridWarning=true;assert.equal(canReview(batch[5]),false);
+saveEditorChanges(batch[6],{gridWarning:true,gridVersion:2});assert.equal(canReview(batch[6]),false);assert.equal(batch[6].gridVersion,2);
+saveEditorChanges(batch[6],{gridWarning:false,alignmentDirty:false});assert.equal(canReview(batch[6]),true);
 assert.equal(batchSummary([]).canExport,false);
 assert.equal(matchingTemplate(batch[0],{rows:['9'],times:['11a']}),null);
 const template={rows:['3','5'],times:['11a','1130a']};assert.equal(matchingTemplate(batch[0],template),template);

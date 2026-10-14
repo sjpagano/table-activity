@@ -1,5 +1,5 @@
-import {isISODate,validDate} from './core.js?v=20261013-5';
-import {pointAt} from './vision.js?v=20261013-5';
+import {isISODate,validDate} from './core.js?v=20261014-1';
+import {pointAt,gridCoordinates} from './vision.js?v=20261014-1';
 
 export const REVIEW_PAGE_SIZE=6;
 export function reviewPage(jobs,page=0){const pages=Math.max(1,Math.ceil(jobs.length/REVIEW_PAGE_SIZE));page=Math.min(pages-1,Math.max(0,page));return {page,pages,items:jobs.slice(page*REVIEW_PAGE_SIZE,(page+1)*REVIEW_PAGE_SIZE)};}
@@ -12,18 +12,10 @@ export function enteredDate(value){
  return validDate(year,+m[1],+m[2]);
 }
 export function shiftDate(iso,days){if(!isISODate(iso))return null;const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);const result=d.toISOString().slice(0,10);return isISODate(result)?result:null;}
-// Invert the same bilinear mapping as mark recognition, including skewed photos.
+// Use exactly the same perspective transform for recognition, overlay and taps.
 export function cellAt(corners,point,rows,cols){
- let u=.5,v=.5;const [a,b,c,d]=corners;
- for(let i=0;i<12;i++){
-  const p=pointAt(corners,u,v),dx=p.x-point.x,dy=p.y-point.y;
-  const ux=(b.x-a.x)*(1-v)+(c.x-d.x)*v,uy=(b.y-a.y)*(1-v)+(c.y-d.y)*v;
-  const vx=(d.x-a.x)*(1-u)+(c.x-b.x)*u,vy=(d.y-a.y)*(1-u)+(c.y-b.y)*u,det=ux*vy-uy*vx;
-  if(Math.abs(det)<1e-8)return null;
-  u-=(dx*vy-dy*vx)/det;v-=(dy*ux-dx*uy)/det;
-  if(Math.abs(dx)+Math.abs(dy)<.01)break;
- }
- if(u<0||v<0||u>=1||v>=1)return null;
+ const coordinates=gridCoordinates(corners,point);if(!coordinates)return null;
+ const {u,v}=coordinates;if(u<0||v<0||u>=1||v>=1)return null;
  return {r:Math.floor(v*rows),c:Math.floor(u*cols)};
 }
 export function drawMarkOverlay(ctx,corners,grid,uncertain=[]){
