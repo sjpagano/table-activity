@@ -1,4 +1,4 @@
-import {findTable} from './grid-detector.js?v=20261014-1';
+import {findTable} from './grid-detector.js?v=20261015-1';
 export function canvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
 export function rotate(source,degrees){const swap=Math.abs(degrees)%180===90;const c=canvas(swap?source.height:source.width,swap?source.width:source.height),x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(degrees*Math.PI/180);x.drawImage(source,-source.width/2,-source.height/2);return c;}
 function thresholdImage(d,w,h,threshold,filterColor=false){
@@ -12,7 +12,7 @@ function thresholdImage(d,w,h,threshold,filterColor=false){
  }
  return {data:out,w,h};
 }
-function lineImage(d,w,h){
+function lineImage(d,w,h,threshold=12){
  const scale=Math.min(1,1000/Math.max(w,h)),sw=Math.ceil(w*scale),sh=Math.ceil(h*scale),small=new Uint8ClampedArray(sw*sh*4);
  // Average before thresholding so high-resolution paper grain cannot turn into
  // connected dark lines when reduced. Nearest/maximum pooling amplifies grain.
@@ -21,15 +21,34 @@ function lineImage(d,w,h){
   for(let yy=y0;yy<y1;yy++)for(let xx=x0;xx<x1;xx++){const i=(yy*w+xx)*4;r+=d[i];g+=d[i+1];b+=d[i+2];n++;}
   const i=(y*sw+x)*4;small[i]=r/n;small[i+1]=g/n;small[i+2]=b/n;small[i+3]=255;
  }
- return thresholdImage(small,sw,sh,12,true);
+ return thresholdImage(small,sw,sh,threshold,true);
 }
 export function binary(source,threshold=16,includeLines=false){
  const {width:w,height:h}=source,d=source.getContext('2d',{willReadFrequently:true}).getImageData(0,0,w,h).data,result=thresholdImage(d,w,h,threshold);
  if(includeLines)result.lines=lineImage(d,w,h);return result;
 }
+// A faint-rule retry must have near-complete columns and agree with an
+// independently thresholded pass. Keep mark sensitivity unchanged.
+export function agreesOnFaintGrid(a,b,rows,cols){
+ const strong=c=>c&&c.confidence.matchedColumns>=Math.ceil((cols+2)*.9)&&c.confidence.columnError<=.1&&c.confidence.rowError<=.04;
+ if(!strong(a)||!strong(b))return false;
+ const width=Math.min(Math.hypot(a.corners[1].x-a.corners[0].x,a.corners[1].y-a.corners[0].y),Math.hypot(a.corners[2].x-a.corners[3].x,a.corners[2].y-a.corners[3].y));
+ const height=Math.min(Math.hypot(a.corners[3].x-a.corners[0].x,a.corners[3].y-a.corners[0].y),Math.hypot(a.corners[2].x-a.corners[1].x,a.corners[2].y-a.corners[1].y));
+ const tolerance=Math.max(1.5,Math.min(width/cols,height/rows)*.18);
+ return a.corners.every((p,i)=>Math.hypot(p.x-b.corners[i].x,p.y-b.corners[i].y)<=tolerance);
+}
 export function locateGrid(source,rowCount,colCount){
- const b=binary(source,16,true),found=findTable(b.lines,{rows:rowCount,cols:colCount});
- if(found)found.corners=found.corners.map(p=>({x:p.x*b.w/b.lines.w,y:p.y*b.h/b.lines.h}));delete b.lines;
+ const b=binary(source,16,true),options={rows:rowCount,cols:colCount},lineWidth=b.lines.w,lineHeight=b.lines.h;
+ let found=findTable(b.lines,options);delete b.lines;
+ if(!found){
+  const d=source.getContext('2d',{willReadFrequently:true}).getImageData(0,0,b.w,b.h).data;let previous=null;
+  for(const threshold of [8,6,4]){
+   const candidate=findTable(lineImage(d,b.w,b.h,threshold),options);
+   if(agreesOnFaintGrid(previous,candidate,rowCount,colCount)){found=candidate;found.confidence.lineThreshold=threshold;break;}
+   previous=candidate;
+  }
+ }
+ if(found)found.corners=found.corners.map(p=>({x:p.x*b.w/lineWidth,y:p.y*b.h/lineHeight}));
  return found?{...found,binary:b}:null;
 }
 // Map the printed rectangle through perspective, not a uniform screen-space grid.
