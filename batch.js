@@ -1,4 +1,4 @@
-import {isISODate} from './core.js?v=20261016-1';
+import {isISODate} from './core.js?v=20261016-2';
 export function canReview(job){return job.status==='ready'&&!!job.grid&&isISODate(job.date)&&!job.alignmentDirty&&!job.gridWarning;}
 export function batchSummary(jobs){
  const ready=jobs.filter(canReview).length,reviewed=jobs.filter(j=>canReview(j)&&j.reviewed).length;
@@ -16,3 +16,26 @@ export function toggleMark(job,row,col){
  job.grid[row][col]=!job.grid[row][col];job.uncertain=job.uncertain.filter(k=>k!==`${row}:${col}`);job.reviewed=false;
 }
 export function matchingTemplate(job,template){return template&&JSON.stringify(job.rows)===JSON.stringify(template.rows)&&JSON.stringify(job.times)===JSON.stringify(template.times)?template:null;}
+
+export function reviewSequence(jobs,activeId=null){return jobs.filter(j=>j.status==='ready'&&(!j.reviewed||j.id===activeId));}
+export function adjacentReview(jobs,activeId,direction=1){
+ const sequence=reviewSequence(jobs,activeId),index=sequence.findIndex(j=>j.id===activeId);
+ if(!sequence.length)return null;
+ return sequence[(Math.max(0,index)+direction+sequence.length)%sequence.length];
+}
+export function acceptReview(jobs,job){
+ if(!canReview(job))return null;
+ job.reviewed=true;
+ const at=jobs.indexOf(job),ordered=[...jobs.slice(at+1),...jobs.slice(0,at)];
+ return ordered.find(j=>j.status==='ready'&&!j.reviewed)||null;
+}
+export async function submitReviewed(jobs,{save,forget}){
+ const submitted=[...jobs];
+ if(!batchSummary(submitted).canExport)throw Error('Review every scan before saving.');
+ if(!await save(submitted))return {count:0,cleanupFailed:false};
+ const ids=new Set(submitted.map(j=>j.id));
+ jobs.splice(0,jobs.length,...jobs.filter(j=>!ids.has(j.id)));
+ let cleanupFailed=false;
+ for(const job of submitted){try{await forget(job.id);}catch{cleanupFailed=true;}}
+ return {count:submitted.length,cleanupFailed};
+}

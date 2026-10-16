@@ -12,8 +12,9 @@ const corners=[{x:30,y:45},{x:2100,y:80},{x:2040,y:1320},{x:55,y:1450}];
 for(let r=0;r<6;r++)for(let c=0;c<36;c++)assert.deepEqual(cellAt(corners,pointAt(corners,(c+.5)/36,(r+.5)/6),6,36),{r,c});
 assert.equal(cellAt(corners,{x:0,y:0},6,36),null);assert.equal(cellAt(Array(4).fill({x:0,y:0}),{x:0,y:0},6,36),null);
 let fills=0;const ctx={save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){fills++;},stroke(){},arc(){}};drawMarkOverlay(ctx,corners,[[true,false],[false,true]]);assert.equal(fills,4); // Two highlighted cells, two identifying dots; blanks remain unfilled.
-const job={id:1,status:'processing',date:'2026-10-08',dateSource:'manual',grid:[[true,false]],sourceBlob:new Blob(['image']),source:{largeCanvas:true},history:[1],file:new Blob(['original'])};
+const job={id:1,status:'processing',date:'2026-10-08',dateSource:'manual',grid:[[true,false]],thumbnail:'data:image/jpeg;base64,preview',sourceBlob:new Blob(['image']),source:{largeCanvas:true},history:[1],file:new Blob(['original'])};
 const record=draftRecord(job);assert.equal(record.status,'queued');assert.equal(record.hasSource,true);assert.equal(record.source,undefined);assert.equal(record.sourceBlob,undefined);assert.equal(record.file,undefined);assert.equal(record.history,undefined);job.grid[0][0]=false;assert.equal(record.grid[0][0],true);
 const recovered=restoredJob({...record,dateSource:'metadata',reviewed:true});assert.equal(recovered.date,'');assert.equal(recovered.reviewed,false);assert.equal(recovered.sourceBlob,null);assert.equal(restoredJob(record).date,'2026-10-08');
+assert.equal(recovered.thumbnail,job.thumbnail,'Overview previews survive draft restoration without loading full images');
 assert.equal(restoredJob({...record,dateSource:'metadata',savedDate:record.date}).date,record.date); // Previously reviewed database dates remain editable records.
 console.log('Large-batch review: bounded pages, fast dates, skewed overlay hit-testing, explicit blanks and lightweight recovery records passed.');

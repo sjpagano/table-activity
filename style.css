@@ -36,4 +36,43 @@ body.camera-open{overflow:hidden}
 @media(max-height:520px) and (min-width:601px){.camera-dialog{width:100%;max-height:100dvh;margin:0;border:0;border-radius:0}.camera-shell{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:10px;padding:12px}.camera-heading{grid-column:1/-1}.camera-direction{grid-column:1;grid-row:2}.camera-view{grid-column:1;grid-row:3/7;height:calc(100dvh - 145px);min-height:130px}.camera-feedback{grid-column:2;grid-row:2/4}.camera-controls{grid-column:2;grid-row:4;gap:6px}.camera-finish{grid-column:2;grid-row:5}.camera-note{grid-column:2;grid-row:6}}
 
 .grid-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;background:#fff3d8;border-left:3px solid #b96b12;margin:8px 0;font-size:12px}.grid-alert .button{flex-shrink:0}@media(max-width:600px){.grid-alert{flex-wrap:wrap}.grid-alert .button{width:100%}}
+
+/* Upload, review, then submit. Accepted scans remain in the overview. */
+.workspace{display:block;max-width:1100px;margin:auto}
+.sidebar{display:block;margin-bottom:20px}.upload-card{margin:0}
+.upload-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch}
+.upload-actions .dropzone{min-height:88px;margin:0;padding:16px;justify-content:center;border-radius:6px}
+.upload-actions .dropzone strong{font-size:16px}.upload-actions .dropzone span{font-size:11px}
+.upload-actions>.button{min-height:88px;font-size:16px;border-radius:6px}
+.review-launch{display:block;width:100%;min-height:56px;margin-top:16px;font-size:18px;border-radius:6px}
+.upload-card .hint:empty,.upload-card .file-status:empty{display:none}
+.batch-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+.batch-item{padding:10px}.batch-item.is-reviewed{border-color:#ccd4dc;box-shadow:none}
+.scan-thumbnail{display:block;width:100%;padding:0;aspect-ratio:16/10;background:#f2f4f5;border:0;border-radius:4px;overflow:hidden}
+.scan-thumbnail img{display:block;width:100%;height:100%;object-fit:contain}
+.scan-thumbnail:focus-visible{outline:3px solid #245f8e;outline-offset:3px}
+.scan-placeholder{display:flex;align-items:center;justify-content:center;height:100%;padding:20px;font-size:13px;color:#536473}
+.scan-caption{display:grid;grid-template-columns:minmax(0,1fr) 28px auto;align-items:center;gap:8px;margin-top:10px}
+.scan-caption .quick-date{grid-column:1;width:150px;max-width:100%;font-size:14px}
+.accepted-mark{grid-column:2;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#e5f3e9;color:#24723d;font-size:21px;font-weight:700}
+.scan-caption .text-button{grid-column:3;min-height:42px}
+.batch-pagination:has(button:first-child:disabled):has(button:last-child:disabled){display:none}
+.review-tools{display:flex;align-items:center;gap:12px}
+.review-tools #findGridBtn{min-height:44px;border:1px solid #86a3ba;font-weight:600}
+.detail-review{justify-content:flex-end}.detail-review>.primary{width:100%;min-height:48px;font-size:16px}
+.focused-review #dateCrop{width:min(100%,500px);max-height:64px}
+#exportHint{margin:0;font-size:12px}.export-bar{gap:12px}
+.account-actions{margin-left:auto;display:flex;align-items:center;gap:14px;padding:8px 0}
+.account-actions #accountBtn{min-height:40px}.account-panel{padding:24px}
+.account-panel:not([open]){display:none}.account-panel .section-heading{align-items:center}
+#accountMessage:empty{display:none}
+@media(max-width:800px){
+ .app-bar{align-items:center}.account-actions{gap:6px;padding:4px 0;flex-direction:column;align-items:flex-end}
+ .account-actions #syncStatus{display:none}.app-bar nav button{padding:12px 10px}
+ .upload-actions{gap:10px}.upload-actions>.button,.upload-actions .dropzone strong{font-size:14px}
+ .upload-actions .dropzone{padding:12px}.upload-actions .dropzone span{font-size:10px}
+ .review-launch{min-height:56px;font-size:18px}.batch-cards{grid-template-columns:1fr}
+ .overlay-toolbar .review-tools{flex-basis:100%;justify-content:space-between}
+ .focused-review #dateCrop{max-height:56px;width:100%}.account-panel{padding:18px}
+}
 .overlay-scroll canvas.aligning{touch-action:pan-x pan-y}

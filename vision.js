@@ -1,4 +1,4 @@
-import {findTable} from './grid-detector.js?v=20261016-1';
+import {findTable} from './grid-detector.js?v=20261016-2';
 export function canvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
 export function rotate(source,degrees){const swap=Math.abs(degrees)%180===90;const c=canvas(swap?source.height:source.width,swap?source.width:source.height),x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(degrees*Math.PI/180);x.drawImage(source,-source.width/2,-source.height/2);return c;}
 function thresholdImage(d,w,h,threshold,filterColor=false){

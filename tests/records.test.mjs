@@ -16,7 +16,7 @@ assert.equal(summarize([day],{start:'2026-10-10'}).occupancy,null);
 assert.equal(weekStart('2026-10-11'),'2026-10-05');assert.equal(weekStart('2026-10-12'),'2026-10-12');assert.equal(dayOffset('2026-03-08',1),'2026-03-09');assert.equal(dayOffset('2026-12-31',1),'2027-01-01');
 const jobs=[{...day,fileName:'test.pdf'}];assert.equal(planSave(jobs,[])[0].expected_revision,0);assert.equal(planSave(jobs,[{...day,revision:3}])[0].expected_revision,3);
 const stalePlan=planSave([{...jobs[0],savedRevision:2,savedDate:day.date}],[{...day,revision:3}])[0];
-assert.equal(stalePlan.expected_revision,3);assert.equal(stalePlan.changed_elsewhere,true); // show the newer record for explicit replacement approval; later writes still fail at the server
+assert.equal(stalePlan.expected_revision,3);assert.equal(stalePlan.changed_elsewhere,true); // Replace against the latest revision; a later concurrent write still fails at the server.
 assert.throws(()=>planSave([...jobs,...jobs],[]),/more than one/);assert.throws(()=>planSave([{...jobs[0],savedDate:'2026-10-07'}],[]),/cannot be changed/);
 assert.deepEqual(parseBackup(JSON.stringify({format:'table-activity-v1',days:[day,{...next,archived:true}]})),[day]);
 console.log('Database records: explicit blanks, totals, overnight filters, missing dates, occupancy, archive, revisions and backups passed.');

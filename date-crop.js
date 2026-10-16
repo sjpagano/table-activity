@@ -1,4 +1,4 @@
-import {canvas,projection,projectPoint} from './vision.js?v=20261016-1';
+import {canvas,projection,projectPoint} from './vision.js?v=20261016-2';
 
 // Keep the small date crop losslessly. The full review image is a JPEG to
 // conserve batch memory; recomputing the crop from it changes OCR input.

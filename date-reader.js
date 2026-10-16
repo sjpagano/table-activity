@@ -1,4 +1,4 @@
-import {handwritingDate,parseDates,isISODate} from './core.js?v=20261016-1';
+import {handwritingDate,parseDates,isISODate} from './core.js?v=20261016-2';
 
 // Only text on the document can supply an activity date. Metadata is ignored.
 export async function readActivityDate(job,readers){

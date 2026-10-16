@@ -1,4 +1,4 @@
-const FIELDS=['id','order','fileName','page','pageCount','expanded','status','rows','times','grid','uncertain','reviewed','date','dateSource','dateNote','datePreview','datePreviewKey','dateCropKey','corners','alignmentDirty','sensitivity','ocrText','error','gridWarning','gridVersion','savedDate','savedRevision','savedOwner','hasSource'];
+const FIELDS=['id','order','fileName','page','pageCount','expanded','status','rows','times','grid','uncertain','reviewed','date','dateSource','dateNote','datePreview','datePreviewKey','dateCropKey','corners','alignmentDirty','sensitivity','ocrText','error','gridWarning','gridVersion','savedDate','savedRevision','savedOwner','hasSource','thumbnail'];
 export function draftRecord(job){
  const result=Object.fromEntries(FIELDS.filter(key=>job[key]!==undefined).map(key=>[key,job[key]]));
  result.hasSource=!!(job.sourceBlob||job.hasSource);result.status=job.status==='processing'?'queued':job.status;

@@ -1,4 +1,4 @@
-import {createCameraSession,captureVideoFrame,captureFiles} from './camera-session.js?v=20261016-1';
+import {createCameraSession,captureVideoFrame,captureFiles} from './camera-session.js?v=20261016-2';
 
 export function createCamera({onFinish,canOpen=()=>true,document:doc=globalThis.document,mediaDevices=globalThis.navigator?.mediaDevices}){
  const dialog=doc.createElement('dialog');dialog.className='camera-dialog';dialog.setAttribute('aria-labelledby','cameraTitle');
@@ -16,7 +16,7 @@ export function createCamera({onFinish,canOpen=()=>true,document:doc=globalThis.
  let thumbnail=null,lastPage=null,flashTimer=null,lastStatus='closed';
  const tell=(text,error=false)=>{$('cameraStatus').textContent=text;$('cameraStatus').classList.toggle('error',error);};
  const session=createCameraSession({
-  getUserMedia:constraints=>{if(!mediaDevices?.getUserMedia)throw Error('Live camera is unavailable in this browser. Close this view and use “Take one photo” or “Add files”.');return mediaDevices.getUserMedia(constraints);},
+  getUserMedia:constraints=>{if(!mediaDevices?.getUserMedia)throw Error('Live camera is unavailable in this browser. Close this view and use “Add files”.');return mediaDevices.getUserMedia(constraints);},
   attachStream:async stream=>{
    video.muted=true;video.srcObject=stream;let timeout;
    try{await Promise.race([video.play(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('The camera did not provide a live picture. Tap Resume to try again.')),15000);})]);}
@@ -51,7 +51,7 @@ export function createCamera({onFinish,canOpen=()=>true,document:doc=globalThis.
   }
  });
  function cameraError(error){
-  const text=['NotAllowedError','SecurityError'].includes(error.name)?'Camera access was not allowed. Enable camera access for this website, then tap Resume. You can also close this view and use “Take one photo” or “Add files”.':error.name==='NotFoundError'?'No camera was found. Close this view and use “Add files”, or open the website on your phone.':error.name==='NotReadableError'?'The camera could not start. Close other camera apps, then tap Resume.':error.message||'The camera could not start. Tap Resume to try again.';
+  const text=['NotAllowedError','SecurityError'].includes(error.name)?'Camera access was not allowed. Enable camera access for this website, then tap Resume. You can also close this view and use “Add files”.':error.name==='NotFoundError'?'No camera was found. Close this view and use “Add files”, or open the website on your phone.':error.name==='NotReadableError'?'The camera could not start. Close other camera apps, then tap Resume.':error.message||'The camera could not start. Tap Resume to try again.';
   tell(text,true);
  }
  function close(){if(session.snapshot().busy)return;if(session.snapshot().count&&!globalThis.confirm('Discard the pages captured in this camera session? Choose Cancel to keep them, then Finish & review.'))return;session.close();dialog.close();}

@@ -1,5 +1,5 @@
-import {isISODate,validDate} from './core.js?v=20261016-1';
-import {pointAt,gridCoordinates} from './vision.js?v=20261016-1';
+import {isISODate,validDate} from './core.js?v=20261016-2';
+import {pointAt,gridCoordinates} from './vision.js?v=20261016-2';
 
 export const REVIEW_PAGE_SIZE=6;
 export function reviewPage(jobs,page=0){const pages=Math.max(1,Math.ceil(jobs.length/REVIEW_PAGE_SIZE));page=Math.min(pages-1,Math.max(0,page));return {page,pages,items:jobs.slice(page*REVIEW_PAGE_SIZE,(page+1)*REVIEW_PAGE_SIZE)};}
