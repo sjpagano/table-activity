@@ -1,17 +1,20 @@
-import './compatibility.js?v=20261015-1';
-import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday} from './core.js?v=20261015-1';
-import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261015-1';
-import {recognizeDate,releaseRecognition} from './recognition.js?v=20261015-1';
-import {createLibrary} from './library.js?v=20261015-1';
-import {timeMinute} from './records.js?v=20261015-1';
-import {batchSummary,canReview,changeDate,toggleMark,saveEditorChanges} from './batch.js?v=20261015-1';
-import {createDraftStore} from './drafts.js?v=20261015-1';
-import {REVIEW_PAGE_SIZE,reviewPage,displayDate,enteredDate,shiftDate,cellAt,drawMarkOverlay} from './review.js?v=20261015-1';
-import {createCamera} from './camera.js?v=20261015-1';
+import './compatibility.js?v=20261016-1';
+import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday} from './core.js?v=20261016-1';
+import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261016-1';
+import {recognizeDate,releaseRecognition} from './recognition.js?v=20261016-1';
+import {createLibrary} from './library.js?v=20261016-1';
+import {timeMinute} from './records.js?v=20261016-1';
+import {batchSummary,canReview,changeDate,toggleMark,saveEditorChanges} from './batch.js?v=20261016-1';
+import {createDraftStore} from './drafts.js?v=20261016-1';
+import {REVIEW_PAGE_SIZE,reviewPage,displayDate,enteredDate,shiftDate,cellAt,drawMarkOverlay} from './review.js?v=20261016-1';
+import {createCamera} from './camera.js?v=20261016-1';
+import {createImportQueue} from './import-queue.js?v=20261016-1';
+import {refreshDatePreview} from './date-crop.js?v=20261016-1';
 const $=id=>document.getElementById(id);
 const jobs=[];
 let nextId=1,processing=false,exporting=false,exported=false,activeId=null,selectionToken=0;
 let library,batchPage=0,expandedGrid=null,draftLoading=true,pauseReading=false,pendingSelection=null;
+let importQueue;
 const drafts=createDraftStore(),draftTimers=new Map();let draftFailed=false;
 function queueDraft(job){if(!job?.id)return;clearTimeout(draftTimers.get(job.id));$('draftStatus').textContent='Saving local draft…';draftTimers.set(job.id,setTimeout(()=>{draftTimers.delete(job.id);persistJob(job);},150));}
 async function persistJob(job){try{await drafts.save(job);$('draftStatus').textContent=draftFailed?'Some draft changes could not be saved. Keep this page open.':'Draft saved on this device';return true;}catch(e){draftFailed=true;$('draftStatus').textContent='Local draft could not be saved. Keep this page open until you save the reviewed days.';return false;}}
@@ -34,7 +37,7 @@ function renderActiveDate(){
  if(document.activeElement!==$('activityDate'))$('activityDate').value=displayDate(date);
  state.dateSource=dateSource;$('dateNote').textContent=dateNote||'';
  $('dateNote').classList.toggle('fallback',['suggestion'].includes(dateSource));$('weekday').textContent=weekday(date)||'—';
- $('ocrText').textContent=`App version: 20261015-1\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
+ $('ocrText').textContent=`App version: 20261016-1\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
 }
 function updateExport(){
  renderActiveDate();
@@ -44,7 +47,8 @@ function updateExport(){
  $('exportHint').textContent=summary.total?`${summary.reviewed} of ${summary.total} pages reviewed${summary.pending?' · '+summary.pending+' still reading':''}${summary.failed?' · remove or retry '+summary.failed+' failed '+(summary.failed===1?'page':'pages'):''}. ${library?.signedIn()?'':'Sign in to save.'}`:'Add scans to begin.';
  $('reviewAll').checked=summary.canExport;
  $('reviewAll').disabled=processing||locked||state.aligning||summary.ready!==summary.total||!summary.total;
- for(const id of ['scanFile','cameraFile','openCamera','manualBtn'])$(id).disabled=processing||locked;
+ for(const id of ['scanFile','browseFile','cameraFile'])$(id).disabled=false;
+ for(const id of ['openCamera','manualBtn'])$(id).disabled=processing||locked||!!importQueue?.count();
  for(const id of ['applyLayout','rowLabels','timeLabels','clearScans'])$(id).disabled=processing||locked;
  for(const id of ['retryDate','rotateBtn','rescanBtn','findGridBtn','fixGridBtn','alignBtn','sensitivity','activityDate','undoBtn','reviewed','reviewNext','dateBack','dateForward','showOverlay','overlayZoom'])$(id).disabled=locked||!state.job||state.job.status!=='ready';
  $('activityDate').disabled=locked||!state.job||!!state.job.savedDate;
@@ -62,6 +66,8 @@ function updateExport(){
  $('batchSummary').textContent=`${summary.reviewed} reviewed · ${summary.pending} reading · ${summary.failed} failed`;
  const dates=jobs.filter(j=>isISODate(j.date)).map(j=>j.date),duplicates=dates.length-new Set(dates).size;
  const needsAlignment=jobs.filter(j=>j.status==='ready'&&(j.gridWarning||j.alignmentDirty)).length;if(needsAlignment)$('batchSummary').textContent+=` · ${needsAlignment} need table alignment`;if(duplicates)$('batchSummary').textContent+=' · Correct or remove repeated dates before saving.';
+ if(importQueue?.count())$('clearScans').disabled=true;
+ importQueue?.resume();
 }
 function invalidate(){
  $('reviewed').checked=false;exported=false;saveActive();
@@ -134,6 +140,7 @@ async function selectJob(id){
  if(state.busy||exporting)return;if(processing){pauseReading=true;pendingSelection=id;message('Finishing the current page, then opening your scan. Remaining pages will wait.');return;}saveActive();const job=jobs.find(j=>j.id===id);if(!job||job.status!=='ready')return;
  const alreadyOpen=!!state.job,pan=$('sourceCanvas').parentElement,scroll={x:pan.scrollLeft/Math.max(1,pan.scrollWidth),y:pan.scrollTop/Math.max(1,pan.scrollHeight)};const token=++selectionToken;setBusy(true,'Opening scan…');releaseSource();$('activityGrid').replaceChildren();$('batchCards').replaceChildren();$('batchPanel').hidden=true;await pause();
  try{const images=job.sourceBlob||!job.hasSource?{}:await drafts.images(job.id);if(images.dateCropBlob)job.dateCropBlob=images.dateCropBlob;const blob=job.sourceBlob||images.sourceBlob;const source=blob?await decodeBlob(blob):null;if(token!==selectionToken){if(source)source.width=source.height=1;return;}
+  if(refreshDatePreview(job,source))queueDraft(job);
   activeId=id;Object.assign(state,{gridWarning:false,gridVersion:0,alignmentDirty:false},job,{job,source,aligning:false,alignPoints:[],selected:null});state.busy=true;
   $('batchPanel').hidden=true;$('detailPanel').hidden=false;$('detailNav').hidden=false;$('detailReview').hidden=false;
   $('detailTitle').textContent=`${jobs.indexOf(job)+1} of ${jobs.length} · ${jobLabel(job)}`;$('sourceName').textContent=`${jobs.length} ${jobs.length===1?'page':'pages'} in batch`;
@@ -144,8 +151,24 @@ async function selectJob(id){
  }catch(e){message(e.message,true);$('scanView').classList.remove('focused-review');$('batchPanel').hidden=false;}finally{setBusy(false);renderBatch(false);}
 }
 function removeJob(job){if(processing||state.busy||exporting)return;if(activeId===job.id){state.job=null;activeId=null;}jobs.splice(jobs.indexOf(job),1);removeDraft(job.id);exported=false;showOverview();$('sourceName').textContent=`${jobs.length} pages in batch`;}
-async function addFiles(files){if(!files.length||processing||state.busy||exporting||draftLoading)return;saveActive();const added=files.map(file=>newJob(file));jobs.push(...added);files=null;setBusy(true,'Saving scans on this device…');try{for(const job of added)await persistJob(job);}finally{setBusy(false);}exported=false;library.show('scan');$('sourceName').textContent=`${jobs.length} scans queued`;
- showOverview();await processQueue();}
+importQueue=createImportQueue({
+ blocked:()=>processing||state.busy||exporting||draftLoading,
+ pending:n=>{$('importStatus').textContent=n?`${n} selected ${n===1?'file':'files'} waiting to be added. Keep this page open.`:'';},
+ consume:async files=>{
+  saveActive();const added=files.map(file=>newJob(file));jobs.push(...added);files.length=0;
+  setBusy(true,`Saving ${added.length} selected files on this device…`);await pause();
+  try{for(let i=0;i<added.length;i++){
+   progress(`Saving file ${i+1} of ${added.length} on this device…`,(i+1)/added.length*100);
+   // The queue loads one original at a time from IndexedDB. Retain the File
+   // only when storage failed, so a large selection does not pin every blob.
+   if(await persistJob(added[i]))added[i].file=null;
+  }}finally{setBusy(false);}
+  exported=false;library.show('scan');$('sourceName').textContent=`${jobs.length} scans queued`;showOverview();
+ },
+ idle:()=>{updateExport();if(!pauseReading&&jobs.some(j=>j.status==='queued'))processQueue();},
+ error:e=>message(`Could not finish adding this selection: ${e.message}. Your existing scans are kept.`,true)
+});
+function addFiles(files){importQueue.add(files);}
 async function processQueue(){
  if(processing||draftLoading)return;pauseReading=false;processing=true;message('');renderBatch(false);updateExport();let pdf=null,pdfFile=null;
  try{for(let index=0;index<jobs.length;index++){
@@ -157,7 +180,7 @@ async function processQueue(){
    if(!job.file)throw Error('The original file is missing from this draft. Remove this page and add its file again.');
    if(job.file.size>25*1024*1024)throw Error('This file is larger than 25 MB. Remove it or choose a smaller copy.');
    if(job.file.type==='application/pdf'||/\.pdf$/i.test(job.file.name)){
-    if(pdfFile!==job.file){if(pdf)await pdf.destroy();pdf=null;pdfFile=null;const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./pdf-worker.js?v=20261015-1',location.href).href;pdf=await pdfjs.getDocument({data:new Uint8Array(await job.file.arrayBuffer()),isEvalSupported:false}).promise;pdfFile=job.file;}
+    if(pdfFile!==job.file){if(pdf)await pdf.destroy();pdf=null;pdfFile=null;const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./pdf-worker.js?v=20261016-1',location.href).href;pdf=await pdfjs.getDocument({data:new Uint8Array(await job.file.arrayBuffer()),isEvalSupported:false}).promise;pdfFile=job.file;}
     if(!job.expanded){job.expanded=true;job.pageCount=pdf.numPages;const rest=[];for(let p=2;p<=pdf.numPages;p++)rest.push({...newJob(job.file),order:(job.order??job.id)+(p-1)/pdf.numPages,page:p,pageCount:pdf.numPages,expanded:true,rows:[...job.rows],times:[...job.times]});jobs.splice(index+1,0,...rest);for(const pageJob of [job,...rest])await persistJob(pageJob);renderBatch(false);}
     const page=await pdf.getPage(job.page),base=page.getViewport({scale:1}),viewport=page.getViewport({scale:2200/Math.max(base.width,base.height)});source=canvas(Math.ceil(viewport.width),Math.ceil(viewport.height));await page.render({canvasContext:source.getContext('2d'),viewport}).promise;try{job.pdfText=(await page.getTextContent()).items.map(t=>t.str).join(' ');}catch(e){job.pdfText='';job.pdfTextError=e.message;}page.cleanup();
    }else{source=await decodeBlob(job.file);}
@@ -212,7 +235,7 @@ $('showOverlay').addEventListener('change',drawSource);
 $('overlayZoom').addEventListener('input',()=>{$('sourceCanvas').style.width=`${+$('overlayZoom').value*100}%`;});
 $('reviewed').addEventListener('change',()=>{saveActive();exported=false;renderCard(state.job);updateExport();});
 $('reviewAll').addEventListener('change',()=>{const checked=$('reviewAll').checked;saveActive();for(const job of jobs){job.reviewed=checked&&canReview(job);queueDraft(job);}if(state.job)$('reviewed').checked=state.job.reviewed;exported=false;renderBatch();});
-for(const id of ['scanFile','cameraFile'])$(id).addEventListener('change',e=>{const files=[...e.target.files];e.target.value='';addFiles(files);});
+for(const id of ['scanFile','browseFile','cameraFile'])$(id).addEventListener('change',e=>{const files=[...e.target.files];e.target.value='';addFiles(files);});
 const camera=createCamera({onFinish:files=>addFiles(files),canOpen:()=>!processing&&!state.busy&&!exporting&&!draftLoading});
 $('openCamera').addEventListener('click',()=>camera.open());
 $('dropzone').addEventListener('dragover',e=>{e.preventDefault();$('dropzone').classList.add('drag');});
@@ -254,8 +277,8 @@ function addRecords(records,editing=false){
  exported=false;library.show('scan');showOverview();if(editing)selectJob(jobs.at(-1).id);
 }
 library=createLibrary({edit:record=>addRecords([record],true),importDays:records=>addRecords(records),changed:updateExport});
-window.addEventListener('beforeunload',e=>{if(jobs.length&&!exported||camera.hasCaptures()){e.preventDefault();e.returnValue='';}});
-if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261015-1').catch(()=>{});
+window.addEventListener('beforeunload',e=>{if(jobs.length&&!exported||importQueue.count()||camera.hasCaptures()){e.preventDefault();e.returnValue='';}});
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261016-1').catch(()=>{});
 const gridScroller=$('activityGrid').parentElement;
 function syncGridScroll(){const max=gridScroller.scrollWidth-gridScroller.clientWidth;$('gridPosition').value=max>0?Math.round(gridScroller.scrollLeft/max*1000):0;$('gridPosition').disabled=max<=0;const index=Math.max(0,Math.min(state.times.length-1,Math.round(gridScroller.scrollLeft/49)));$('scrollPosition').textContent=state.times[index]||'';}
 $('gridPosition').addEventListener('input',e=>{gridScroller.scrollLeft=+e.target.value/1000*(gridScroller.scrollWidth-gridScroller.clientWidth);syncGridScroll();});

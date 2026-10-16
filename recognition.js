@@ -1,9 +1,9 @@
-import {canvas} from './vision.js?v=20261015-1';
-import {recognitionCrop} from './date-crop.js?v=20261015-1';
-import {readActivityDate} from './date-reader.js?v=20261015-1';
+import {canvas} from './vision.js?v=20261016-1';
+import {recognitionCrop} from './date-crop.js?v=20261016-1';
+import {readActivityDate} from './date-reader.js?v=20261016-1';
 let ocrWorker,handwritingWorker;
 function readHandwriting(crop,onProgress){return new Promise((resolve,reject)=>{
- if(!handwritingWorker)handwritingWorker=new Worker(new URL('./handwriting-worker.js?v=20261015-1',import.meta.url),{type:'module'});
+ if(!handwritingWorker)handwritingWorker=new Worker(new URL('./handwriting-worker.js?v=20261016-1',import.meta.url),{type:'module'});
  let timer;
  const timeout=()=>{handwritingWorker?.terminate();handwritingWorker=null;reject(Error('Handwriting reader timed out. Check your connection and try Read date again.'));};
  // Reset the idle timeout during the first model download, which can take
