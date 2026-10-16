@@ -1,4 +1,4 @@
-import {createCameraSession,captureVideoFrame,captureFiles} from './camera-session.js?v=20261016-2';
+import {createCameraSession,captureVideoFrame,captureFiles} from './camera-session.js?v=20261016-3';
 
 export function createCamera({onFinish,canOpen=()=>true,document:doc=globalThis.document,mediaDevices=globalThis.navigator?.mediaDevices}){
  const dialog=doc.createElement('dialog');dialog.className='camera-dialog';dialog.setAttribute('aria-labelledby','cameraTitle');

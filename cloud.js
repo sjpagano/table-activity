@@ -1,5 +1,5 @@
 import {createClient} from './vendor/supabase.js';
-import {SUPABASE_URL,SUPABASE_KEY} from './config.js?v=20261016-2';
+import {SUPABASE_URL,SUPABASE_KEY} from './config.js?v=20261016-3';
 export const cloud=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 export function check(error) {if(error)throw Error(error.message||'The database could not be reached. Your scans are still here; try again.');}
 export async function loadDays() {
