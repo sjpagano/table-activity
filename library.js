@@ -1,6 +1,6 @@
-import {cloud,loadDays,saveDays,archiveDay,check} from './cloud.js?v=20261023-1';
-import {planSave,parseBackup,localToday} from './records.js?v=20261023-1';
-import {createDashboard} from './dashboard.js?v=20261023-1';
+import {cloud,loadDays,saveDays,archiveDay,check} from './cloud.js?v=20261023-2';
+import {planSave,parseBackup,localToday} from './records.js?v=20261023-2';
+import {createDashboard} from './dashboard.js?v=20261023-2';
 const $=id=>document.getElementById(id);
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 export function createLibrary({edit,importDays,changed}) {
@@ -30,10 +30,9 @@ export function createLibrary({edit,importDays,changed}) {
   }
   cloud.auth.onAuthStateChange((event,next)=>{setTimeout(()=>updateSession(next,event),0);});
   $('authForm').addEventListener('submit',async e=>{e.preventDefault();const button=$('signInBtn');button.disabled=true;notice('Signing in…');try{const {error}=await cloud.auth.signInWithPassword({email:$('authEmail').value.trim(),password:$('authPassword').value});check(error);$('authPassword').value='';notice('Signed in.');}catch(e){notice(e.message,true);}finally{button.disabled=false;}});
-  $('signUpBtn').addEventListener('click',async()=>{if(!$('authForm').reportValidity())return;const button=$('signUpBtn');button.disabled=true;try{const {data,error}=await cloud.auth.signUp({email:$('authEmail').value.trim(),password:$('authPassword').value,options:{emailRedirectTo:new URL('./',location.href).href}});check(error);$('authPassword').value='';notice(data.session?'Your sign-in is ready.':'Check your email to confirm your sign-in, then return here.');}catch(e){notice(e.message,true);}finally{button.disabled=false;}});
   $('forgotPassword').addEventListener('click',async()=>{if(!$('authEmail').reportValidity())return;try{const {error}=await cloud.auth.resetPasswordForEmail($('authEmail').value.trim(),{redirectTo:new URL('./',location.href).href});check(error);notice('If that account exists, a reset link has been sent.');}catch(e){notice(e.message,true);}});
   $('newPasswordForm').addEventListener('submit',async e=>{e.preventDefault();try{const {error}=await cloud.auth.updateUser({password:$('newPassword').value});check(error);$('newPassword').value='';$('passwordChange').hidden=true;notice('Password updated.');}catch(e){notice(e.message,true);}});
-  $('signOutBtn').addEventListener('click',async()=>{try{const {error}=await cloud.auth.signOut();check(error);notice('Signed out.');}catch(e){notice(e.message,true);}});
+  $('signOutBtn').addEventListener('click',async()=>{try{const {error}=await cloud.auth.signOut({scope:'local'});check(error);notice('Signed out on this device.');}catch(e){notice(e.message,true);}});
   $('refreshDays').addEventListener('click',()=>refresh(true));
   window.addEventListener('focus',()=>refresh(true));document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(true);});
   setInterval(()=>{if(!document.hidden&&session)refresh(true);},60000);
@@ -49,7 +48,7 @@ export function createLibrary({edit,importDays,changed}) {
     if(owner!==session?.user.id)throw Error('Your sign-in changed. Review the batch again.');
     const saved=await saveDays(plan);
     for(const job of jobs){const record=saved.find(r=>r.date===job.date);job.savedRevision=record.revision;job.savedDate=record.date;job.savedOwner=owner;}
-    await refresh(true);notice(`Saved ${saved.length} ${saved.length===1?'day':'days'}. Available on your other devices with the same sign-in.`);return true;
+    await refresh(true);notice(`Saved ${saved.length} ${saved.length===1?'day':'days'}. Available to everyone with access to this activity.`);return true;
   }
   return {save,show,refresh,signedIn:()=>!!session};
 }

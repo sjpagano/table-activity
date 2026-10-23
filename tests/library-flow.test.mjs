@@ -15,9 +15,9 @@ const elements=new Map(ids.map(id=>[id,{
  showModal(){this.open=true;},close(){this.open=false;}
 }]));
 const document={hidden:false,addEventListener(){},getElementById(id){assert(elements.has(id),`Missing #${id}`);return elements.get(id);}};
-let authChanged,stored=[],written=[],saveError=null,loads=0;
+let authChanged,stored=[],written=[],saveError=null,loads=0,signOutScope;
 const sandbox={document,window:{addEventListener(){}},setTimeout:fn=>queueMicrotask(fn),setInterval(){},
- cloud:{auth:{onAuthStateChange(fn){authChanged=fn;},signInWithPassword:async()=>({error:{message:'Invalid password'}})}},
+ cloud:{auth:{onAuthStateChange(fn){authChanged=fn;},signInWithPassword:async()=>({error:{message:'Invalid password'}}),signOut:async options=>{signOutScope=options.scope;return {error:null};}}},
  loadDays:async()=>{loads++;return structuredClone(stored);},
  saveDays:async plan=>{if(saveError)throw saveError;written.push(structuredClone(plan));stored=plan.map(r=>({...r,revision:r.expected_revision+1,archived:false}));return stored;},
  archiveDay:async()=>{},check:err=>{if(err)throw Error(err.message);},planSave,parseBackup,localToday,
@@ -54,6 +54,8 @@ assert.equal(loads,before,'Foreign-account edits fail before loading or writing 
 authChanged('PASSWORD_RECOVERY',{user:{id:'owner-1'}});
 await new Promise(resolve=>setImmediate(resolve));
 assert.equal(account.open,true);assert.equal(elements.get('passwordChange').hidden,false);
+await elements.get('signOutBtn').events.click();
+assert.equal(signOutScope,'local','Signing out must not log other people out of the shared account');
 
 // Every literal app/controller ID must exist after removing obsolete controls.
 for(const file of ['app.js','library.js','dashboard.js']){

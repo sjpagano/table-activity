@@ -39,8 +39,30 @@ create table if not exists public.activity_days (
   constraint valid_grid check(public.valid_activity_grid(rows,times,grid))
 );
 alter table public.activity_days enable row level security;
+
+-- Only the project administrator can link a login to another owner's data.
+-- This schema is not exposed through the Data API; clients cannot read or edit
+-- the membership table. Unlinked logins retain their own isolated records.
+create schema if not exists activity_private;
+revoke all on schema activity_private from public,anon,authenticated;
+create table if not exists activity_private.account_access (
+  member_id uuid primary key references auth.users(id) on delete cascade,
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  check(member_id<>owner_id)
+);
+alter table activity_private.account_access enable row level security;
+revoke all on activity_private.account_access from public,anon,authenticated;
+create or replace function public.activity_owner_id()
+returns uuid language sql stable security definer set search_path='' as $$
+  select coalesce((select owner_id from activity_private.account_access
+    where member_id=auth.uid()),auth.uid());
+$$;
+revoke all on function public.activity_owner_id() from public,anon,authenticated;
+grant execute on function public.activity_owner_id() to authenticated;
+
 drop policy if exists own_days on public.activity_days;
-create policy own_days on public.activity_days for select to authenticated using ((select auth.uid())=user_id);
+create policy own_days on public.activity_days for select to authenticated using ((select public.activity_owner_id())=user_id);
 revoke all on public.activity_days from anon,authenticated;
 grant select on public.activity_days to authenticated;
 
@@ -48,7 +70,7 @@ grant select on public.activity_days to authenticated;
 -- overwrite changes saved since the first device opened its review.
 create or replace function public.save_activity_batch(p_days jsonb)
 returns setof public.activity_days language plpgsql security definer set search_path=public as $$
-declare owner_id uuid:=auth.uid(); item jsonb; target_date date; current_revision integer;
+declare owner_id uuid:=public.activity_owner_id(); item jsonb; target_date date; current_revision integer;
 begin
   if owner_id is null then raise exception 'Sign in before saving.'; end if;
   if jsonb_typeof(p_days)<>'array' or jsonb_array_length(p_days) not between 1 and 200 then raise exception 'Save between 1 and 200 days at a time.'; end if;
@@ -70,11 +92,12 @@ end $$;
 
 create or replace function public.archive_activity_day(p_date date,p_revision integer,p_archived boolean)
 returns setof public.activity_days language plpgsql security definer set search_path=public as $$
+declare owner_id uuid:=public.activity_owner_id();
 begin
-  if auth.uid() is null then raise exception 'Sign in first.'; end if;
-  perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text,0));
+  if owner_id is null then raise exception 'Sign in first.'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(owner_id::text,0));
   return query update public.activity_days set archived=p_archived,revision=revision+1,updated_at=now()
-    where user_id=auth.uid() and date=p_date and revision=p_revision returning *;
+    where user_id=owner_id and date=p_date and revision=p_revision returning *;
   if not found then raise exception 'This day changed on another device. Refresh and try again.'; end if;
 end $$;
 revoke all on function public.save_activity_batch(jsonb) from public,anon,authenticated;

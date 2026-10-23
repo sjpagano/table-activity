@@ -1,5 +1,5 @@
-import {summarize,weekStart,dayOffset,timeLabel} from './records.js?v=20261023-1';
-import {isISODate} from './core.js?v=20261023-1';
+import {summarize,weekStart,dayOffset,timeLabel} from './records.js?v=20261023-2';
+import {isISODate} from './core.js?v=20261023-2';
 
 export const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 export const WEEKDAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];

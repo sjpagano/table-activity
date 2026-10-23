@@ -1,5 +1,5 @@
-import {runQuery,queryCSV,GROUPS,WEEKDAYS} from './analytics.js?v=20261023-1';
-import {timeMinute,timeLabel,localToday} from './records.js?v=20261023-1';
+import {runQuery,queryCSV,GROUPS,WEEKDAYS} from './analytics.js?v=20261023-2';
+import {timeMinute,timeLabel,localToday} from './records.js?v=20261023-2';
 const $=id=>document.getElementById(id);
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const rate=n=>n===null?'—':`${(n*100).toFixed(1)}%`;

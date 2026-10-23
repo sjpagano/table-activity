@@ -1,5 +1,8 @@
--- Disposable fixtures: all changes are rolled back, including auth users.
+-- LOCAL TEST DATABASE ONLY. All fixtures are rolled back, including auth users.
 begin;
+do $$begin
+  assert current_setting('table_activity.local_test',true)='on', 'Use the local database test runner';
+end $$;
 insert into auth.users(id,email) values
  ('11111111-1111-4111-8111-111111111111','activity-test-a@example.invalid'),
  ('22222222-2222-4222-8222-222222222222','activity-test-b@example.invalid');
