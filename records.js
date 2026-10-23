@@ -1,4 +1,4 @@
-import {isISODate} from './core.js?v=20261016-3';
+import {isISODate} from './core.js?v=20261023-1';
 
 export function timeMinute(label) {
   const s=String(label).trim().toLowerCase().replace(/\s|\./g,'');
@@ -22,13 +22,15 @@ export function recordFromJob(job) {
 export const dayOffset=(date,n)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 export const weekStart=date=>dayOffset(date,-((new Date(date+'T12:00:00Z').getUTCDay()+6)%7));
 export const localToday=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
-export function summarize(records,{start,end,table='',from=null,to=null}={}) {
+export function summarize(records,{start,end,table='',tables=null,weekdays=null,from=null,to=null}={}) {
   const days=[],hourMap=new Map(),slotMap=new Map();let marks=0,possible=0,observations=0;
   const first=from??660,last=to??659;
   const inWindow=m=>from===null&&to===null||(first<=last?m>=first&&m<=last:m>=first||m<=last);
   for(const record of records) {
     if(record.archived||(start&&record.date<start)||(end&&record.date>end))continue;
-    const rowIndexes=record.rows.map((label,i)=>!table||label===table?i:-1).filter(i=>i>=0);
+    const weekday=(new Date(record.date+'T12:00:00Z').getUTCDay()+6)%7;
+    if(weekdays&&!weekdays.includes(weekday))continue;
+    const rowIndexes=record.rows.map((label,i)=>(!table||label===table)&&(!tables||tables.includes(label))?i:-1).filter(i=>i>=0);
     const day={date:record.date,marks:0,possible:0,observations:0,slots:[]};
     for(let c=0;c<record.times.length;c++) {
       const minute=timeMinute(record.times[c]);if(minute===null||!inWindow(minute)||!rowIndexes.length)continue;

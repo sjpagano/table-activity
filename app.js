@@ -1,14 +1,14 @@
-import './compatibility.js?v=20261016-3';
-import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday} from './core.js?v=20261016-3';
-import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261016-3';
-import {recognizeDate,releaseRecognition} from './recognition.js?v=20261016-3';
-import {createLibrary} from './library.js?v=20261016-3';
-import {batchSummary,canReview,changeDate,toggleMark,saveEditorChanges,reviewSequence,adjacentReview,acceptReview,submitReviewed} from './batch.js?v=20261016-3';
-import {createDraftStore} from './drafts.js?v=20261016-3';
-import {REVIEW_PAGE_SIZE,reviewPage,displayDate,enteredDate,cellAt,drawMarkOverlay} from './review.js?v=20261016-3';
-import {createCamera} from './camera.js?v=20261016-3';
-import {createImportQueue} from './import-queue.js?v=20261016-3';
-import {refreshDatePreview} from './date-crop.js?v=20261016-3';
+import './compatibility.js?v=20261023-1';
+import {DEFAULT_ROWS,DEFAULT_TIMES,blankGrid,totals,isISODate,weekday} from './core.js?v=20261023-1';
+import {canvas,rotate,locateGrid,defaultCorners,readMarks,pointAt} from './vision.js?v=20261023-1';
+import {recognizeDate,releaseRecognition} from './recognition.js?v=20261023-1';
+import {createLibrary} from './library.js?v=20261023-1';
+import {batchSummary,canReview,changeDate,toggleMark,saveEditorChanges,reviewSequence,adjacentReview,acceptReview,submitReviewed} from './batch.js?v=20261023-1';
+import {createDraftStore} from './drafts.js?v=20261023-1';
+import {REVIEW_PAGE_SIZE,reviewPage,displayDate,enteredDate,cellAt,drawMarkOverlay} from './review.js?v=20261023-1';
+import {createCamera} from './camera.js?v=20261023-1';
+import {createImportQueue} from './import-queue.js?v=20261023-1';
+import {refreshDatePreview} from './date-crop.js?v=20261023-1';
 const $=id=>document.getElementById(id);
 const jobs=[];
 let nextId=1,processing=false,exporting=false,exported=false,activeId=null,selectionToken=0;
@@ -35,7 +35,7 @@ function renderActiveDate(){
  if(document.activeElement!==$('activityDate'))$('activityDate').value=displayDate(date);
  state.dateSource=dateSource;$('dateNote').textContent=dateNote||'';
  $('dateNote').classList.toggle('fallback',['suggestion'].includes(dateSource));$('weekday').textContent=weekday(date)||'—';
- $('ocrText').textContent=`App version: 20261016-3\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
+ $('ocrText').textContent=`App version: 20261023-1\nCurrent activity date: ${date||'(empty)'} (${dateSource||'not selected'})\n\nLast recognition attempt:\n${state.job.ocrText||'No date read yet.'}`;
 }
 function updateExport(){
  renderActiveDate();
@@ -171,7 +171,7 @@ async function processQueue(){
    if(!job.file)throw Error('The original file is missing from this draft. Remove this page and add its file again.');
    if(job.file.size>25*1024*1024)throw Error('This file is larger than 25 MB. Remove it or choose a smaller copy.');
    if(job.file.type==='application/pdf'||/\.pdf$/i.test(job.file.name)){
-    if(pdfFile!==job.file){if(pdf)await pdf.destroy();pdf=null;pdfFile=null;const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./pdf-worker.js?v=20261016-3',location.href).href;pdf=await pdfjs.getDocument({data:new Uint8Array(await job.file.arrayBuffer()),isEvalSupported:false}).promise;pdfFile=job.file;}
+    if(pdfFile!==job.file){if(pdf)await pdf.destroy();pdf=null;pdfFile=null;const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./pdf-worker.js?v=20261023-1',location.href).href;pdf=await pdfjs.getDocument({data:new Uint8Array(await job.file.arrayBuffer()),isEvalSupported:false}).promise;pdfFile=job.file;}
     if(!job.expanded){job.expanded=true;job.pageCount=pdf.numPages;const rest=[];for(let p=2;p<=pdf.numPages;p++)rest.push({...newJob(job.file),order:(job.order??job.id)+(p-1)/pdf.numPages,page:p,pageCount:pdf.numPages,expanded:true,rows:[...job.rows],times:[...job.times]});jobs.splice(index+1,0,...rest);for(const pageJob of [job,...rest])await persistJob(pageJob);renderBatch(false);}
     const page=await pdf.getPage(job.page),base=page.getViewport({scale:1}),viewport=page.getViewport({scale:2200/Math.max(base.width,base.height)});source=canvas(Math.ceil(viewport.width),Math.ceil(viewport.height));await page.render({canvasContext:source.getContext('2d'),viewport}).promise;try{job.pdfText=(await page.getTextContent()).items.map(t=>t.str).join(' ');}catch(e){job.pdfText='';job.pdfTextError=e.message;}page.cleanup();
    }else{source=await decodeBlob(job.file);}
@@ -263,7 +263,7 @@ function addRecords(records,editing=false){
 }
 library=createLibrary({edit:record=>addRecords([record],true),importDays:records=>addRecords(records),changed:updateExport});
 window.addEventListener('beforeunload',e=>{if(jobs.length&&!exported||importQueue.count()||camera.hasCaptures()){e.preventDefault();e.returnValue='';}});
-if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261016-3').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=20261023-1').catch(()=>{});
 const gridScroller=$('activityGrid').parentElement;
 function syncGridScroll(){const max=gridScroller.scrollWidth-gridScroller.clientWidth;$('gridPosition').value=max>0?Math.round(gridScroller.scrollLeft/max*1000):0;$('gridPosition').disabled=max<=0;const index=Math.max(0,Math.min(state.times.length-1,Math.round(gridScroller.scrollLeft/49)));$('scrollPosition').textContent=state.times[index]||'';}
 $('gridPosition').addEventListener('input',e=>{gridScroller.scrollLeft=+e.target.value/1000*(gridScroller.scrollWidth-gridScroller.clientWidth);syncGridScroll();});

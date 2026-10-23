@@ -1,18 +1,26 @@
-import {summarize,weekStart,dayOffset,localToday,timeMinute,timeLabel} from './records.js?v=20261016-3';
-import {weekday,totals} from './core.js?v=20261016-3';
+import {summarize,weekStart,dayOffset,localToday,timeMinute,timeLabel} from './records.js?v=20261023-1';
+import {weekday,totals} from './core.js?v=20261023-1';
+import {monthlyBreakdown,monthRange,MONTHS} from './analytics.js?v=20261023-1';
+import {createQueryBuilder,renderAnalyticsTable} from './query.js?v=20261023-1';
 const $=id=>document.getElementById(id);
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const pretty=date=>new Date(date+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
 const rate=value=>value===null?'—':`${Math.round(value*100)}%`;
 const ordered=m=>(m-660+1440)%1440;
 export function createDashboard({edit,archive}) {
-  let records=[],selectedDay='',initialized=false;
+  let records=[],selectedDay='',selectedMonth=0,initialized=false;
+  const query=createQueryBuilder();
   $('weekDate').value=weekStart(localToday());
   const selectOptions=(id,values,label)=>{const input=$(id),old=input.value;input.replaceChildren();for(const [value,text] of values){const o=el('option','',text);o.value=value;input.append(o);}if([...input.options].some(o=>o.value===old))input.value=old;};
   function render() {
     const start=weekStart($('weekDate').value||localToday()),end=dayOffset(start,6);$('weekDate').value=start;
     $('weekTitle').textContent=`${pretty(start)} – ${pretty(end)}, ${start.slice(0,4)}`;
-    const filters={start:$('period').value==='all'?null:start,end:$('period').value==='all'?null:end,table:$('tableFilter').value,from:$('fromTime').value===''?null:+$('fromTime').value,to:$('toTime').value===''?null:+$('toTime').value};
+    const period=$('period').value,year=$('yearSelect').value||localToday().slice(0,4);
+    const range=period==='year'?(selectedMonth?monthRange(year,selectedMonth):{start:`${year}-01-01`,end:`${year}-12-31`}):period==='week'?{start,end}:{};
+    const filters={...range,table:$('tableFilter').value,from:$('fromTime').value===''?null:+$('fromTime').value,to:$('toTime').value===''?null:+$('toTime').value};
+    $('weekNav').hidden=period!=='week';$('yearControl').hidden=period!=='year';$('monthlyCard').hidden=period!=='year';$('weekDaysCard').hidden=period!=='week';$('weekHeatmapCard').hidden=period!=='week';
+    $('clearMonth').hidden=!selectedMonth;$('monthlyTitle').textContent=`${year} · Month by month`;
+    if(period==='year')renderAnalyticsTable($('monthTable'),monthlyBreakdown(records,year,filters),{bars:true,selected:selectedMonth?`${year}-${String(selectedMonth).padStart(2,'0')}`:'',select:r=>{selectedMonth=selectedMonth===r.month?0:r.month;selectedDay='';render();}});
     const summary=summarize(records,filters),week=summarize(records,{...filters,start,end});
     const selected=selectedDay?summary.days.find(d=>d.date===selectedDay):null;
     if(!selected)selectedDay='';
@@ -22,7 +30,8 @@ export function createDashboard({edit,archive}) {
     $('statPeak').textContent=peak?timeLabel(peak.minute):'—';
     const tied=peak?summary.hours.filter(h=>Math.abs(h.average-peak.average)<1e-9).length:0;
     $('peakNote').textContent=peak?`${peak.average.toFixed(1)} active tables on average${tied>1?` · ${tied} hours tied`:''}`:'No marked observations';
-    $('rangeNote').textContent=`${$('period').value==='all'?'All saved dates':'Selected week'} · ${summary.observations} observations · Times after midnight belong to the date on the sheet.`;
+    const rangeName=period==='all'?'All saved dates':period==='year'?`${selectedMonth?MONTHS[selectedMonth-1]+' ':''}${year}`:'Selected week';
+    $('rangeNote').textContent=`${rangeName} · ${summary.observations} observations · Times after midnight belong to the date on the sheet.`;
     $('clearDay').hidden=!selectedDay;$('hourTitle').textContent=selectedDay?`Hours on ${weekday(selectedDay)}, ${pretty(selectedDay)}`:'Activity by hour';
     const metric=$('chartMetric').value;
     $('hourNote').textContent=metric==='average'?'Average number of active tables per recorded observation in each hour.':'Marked cells divided by recorded table/time cells in each hour.';
@@ -36,7 +45,7 @@ export function createDashboard({edit,archive}) {
     for(const d of summary.days){const bucket=weekdayData[(new Date(d.date+'T12:00:00Z').getUTCDay()+6)%7];bucket.marks+=d.marks;bucket.possible+=d.possible;bucket.days++;}
     drawBars($('weekdayChart'),weekdayData.map(d=>({label:d.label,value:d.possible?d.marks/d.possible*100:null,display:d.possible?rate(d.marks/d.possible):'No record',detail:`${d.days} recorded days`})),100);
     renderHeatmap(week,start);
-    renderRecords(start,end);
+    renderRecords(range.start,range.end);
     $('dashboardEmpty').hidden=records.some(r=>!r.archived);
   }
   function drawBars(container,items,max=null) {
@@ -52,22 +61,29 @@ export function createDashboard({edit,archive}) {
   }
   function renderRecords(start,end) {
     const list=$('savedDays');list.replaceChildren();const archived=$('showArchived').checked;
-    const shown=records.filter(r=>r.archived===archived&&($('period').value==='all'||r.date>=start&&r.date<=end)).sort((a,b)=>b.date.localeCompare(a.date));
+    const shown=records.filter(r=>!!r.archived===archived&&(!start||r.date>=start)&&(!end||r.date<=end)).sort((a,b)=>b.date.localeCompare(a.date));
     $('savedCount').textContent=`(${shown.length})`;
     if(!shown.length){list.append(el('p','chart-empty',archived?'No archived days in this range.':'No saved days in this range.'));return;}
     for(const r of shown){const row=el('article','saved-day'),text=el('div');text.append(el('strong','',`${weekday(r.date)}, ${pretty(r.date)}, ${r.date.slice(0,4)}`),el('p','hint',`${totals(r.grid).grand} X’s · ${r.rows.length} tables · ${r.times.length} times`));const actions=el('div','saved-actions');
       if(!archived){const open=el('button','button secondary','Review / edit');open.addEventListener('click',()=>edit(r));actions.append(open);}
       const archiveButton=el('button','text-button',archived?'Restore':'Archive');archiveButton.addEventListener('click',async()=>{archiveButton.disabled=true;try{await archive(r,!archived);}finally{archiveButton.disabled=false;}});actions.append(archiveButton);row.append(text,actions);list.append(row);}
   }
-  for(const id of ['weekDate','period','tableFilter','fromTime','toTime','chartMetric','showArchived'])$(id).addEventListener('change',()=>{selectedDay='';render();});
+  for(const id of ['weekDate','period','yearSelect','tableFilter','fromTime','toTime','chartMetric','showArchived'])$(id).addEventListener('change',()=>{selectedDay='';if(id==='period'||id==='yearSelect')selectedMonth=0;render();});
   $('previousWeek').addEventListener('click',()=>{$('period').value='week';$('weekDate').value=dayOffset($('weekDate').value,-7);selectedDay='';render();});
   $('nextWeek').addEventListener('click',()=>{$('period').value='week';$('weekDate').value=dayOffset($('weekDate').value,7);selectedDay='';render();});
   $('latestWeek').addEventListener('click',()=>{const latest=records.filter(r=>!r.archived).map(r=>r.date).sort().at(-1);$('weekDate').value=weekStart(latest||localToday());$('period').value='week';selectedDay='';render();});
   $('clearDay').addEventListener('click',()=>{selectedDay='';render();});
-  function setRecords(days) {records=days;const active=days.filter(r=>!r.archived);if(!initialized&&active.length){$('weekDate').value=weekStart(active.map(r=>r.date).sort().at(-1));initialized=true;}
+  $('clearMonth').addEventListener('click',()=>{selectedMonth=0;selectedDay='';render();});
+  function showQuery(show) {$('activityOverview').hidden=show;$('queryPanel').hidden=!show;$('overviewBtn').setAttribute('aria-pressed',!show);$('queryBtn').setAttribute('aria-pressed',show);}
+  $('overviewBtn').addEventListener('click',()=>showQuery(false));$('queryBtn').addEventListener('click',()=>showQuery(true));
+  function setRecords(days) {records=days;const active=days.filter(r=>!r.archived),latest=active.map(r=>r.date).sort().at(-1);
+    if(!days.length){initialized=false;selectedDay='';selectedMonth=0;$('period').value='year';$('tableFilter').value='';$('fromTime').value='';$('toTime').value='';$('showArchived').checked=false;$('weekDate').value=weekStart(localToday());showQuery(false);}
+    const years=[...new Set([...days.map(r=>r.date.slice(0,4)),localToday().slice(0,4)])].sort().reverse();
+    selectOptions('yearSelect',years.map(y=>[y,y]));
+    if(!initialized&&latest){$('weekDate').value=weekStart(latest);$('yearSelect').value=latest.slice(0,4);initialized=true;}
     selectOptions('tableFilter',[['','All tables'],...[...new Set(active.flatMap(r=>r.rows))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).map(t=>[t,`Table ${t}`])]);
     const times=[...new Set(active.flatMap(r=>r.times.map(timeMinute)).filter(m=>m!==null))].sort((a,b)=>ordered(a)-ordered(b)).map(m=>[String(m),timeLabel(m)]);
-    selectOptions('fromTime',[['','Start of sheet'],...times]);selectOptions('toTime',[['','End of sheet'],...times]);render();
+    selectOptions('fromTime',[['','Start of sheet'],...times]);selectOptions('toTime',[['','End of sheet'],...times]);query.setRecords(days);render();
   }
   setRecords([]);return {setRecords,render};
 }
