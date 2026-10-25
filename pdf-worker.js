@@ -1,3 +1,3 @@
-import './compatibility.js?v=20261023-2';
+import './compatibility.js?v=20261024-1';
 const worker=await import('./vendor/pdf.worker.mjs');
 export const WorkerMessageHandler=worker.WorkerMessageHandler;

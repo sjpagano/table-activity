@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {OPEN_TIME_FACTOR,MINUTES_PER_X,estimatedHours,formatHours,tableName,hourWindow} from '../activity-display.js';
+import {runQuery,monthlyBreakdown,queryCSV} from '../analytics.js';
+import {summarize} from '../records.js';
+
+// Disposable in-memory records only. No network or database writes.
+const days=[{date:'2026-09-13',rows:['3','5'],times:['6p','630p','7p','12a','1230a','1a'],grid:[[true,true,true,true,true,false],[false,true,false,true,false,false]]}];
+const original=JSON.stringify(days);
+assert.equal(OPEN_TIME_FACTOR,.65);assert.equal(MINUTES_PER_X,19.5);
+assert.equal(estimatedHours(1),.325);assert.equal(estimatedHours(2),.65);
+assert.equal(formatHours(1),'0.33');assert.equal(formatHours(2),'0.65');
+const evening=hourWindow('1080','1080');
+assert.equal(summarize(days,evening).marks,3,'Both half-hour samples are in the selected hour');
+assert.equal(summarize(days,{...evening,table:'5'}).marks,1,'Names do not replace stored numeric IDs');
+assert.equal(summarize(days,hourWindow('0','0')).marks,3,'Midnight includes 12:30 AM without including 1 AM');
+assert.equal(summarize(days,hourWindow('1080','0')).marks,7,'Overnight range includes the complete ending hour');
+assert.deepEqual(hourWindow(),{from:null,to:null});
+assert.equal(summarize(days,hourWindow('','0')).marks,7);
+assert.equal(summarize(days,hourWindow('0','')).marks,3);
+const q=runQuery(days,{...evening,group:'table'});
+assert.deepEqual(q.rows.map(r=>[r.key,r.label,r.estimatedHours]),[['3','Ultimate Texas Holdem (UTH)',.65],['5','BlackJack 1 (BJ-1)',.325]]);
+assert.equal(q.summary.estimatedHours,.975);
+assert.equal(monthlyBreakdown(days,2026)[8].estimatedHours,2.275);
+assert.match(queryCSV(q.rows,'table'),/Estimated table-hours \(19.5 minutes per X\)/);
+assert.match(queryCSV(q.rows,'table'),/"0.6500"/);
+assert.deepEqual(['3','5','6','7','8','9'].map(id=>tableName(id,{short:true})),['UTH','BJ-1','TCP','BAC-2','BJ-2','BAC-1']);
+assert.equal(tableName('6'),'Three Card Poker (TCP)');assert.equal(tableName('7'),'Baccarat 2 (BAC-2)');
+assert.equal(tableName('8'),'BlackJack 2 (BJ-2)');assert.equal(tableName('9'),'Baccarat 1 (BAC-1)');
+assert.equal(tableName('99'),'Table 99');assert.equal(tableName('__proto__'),'Table __proto__');
+assert.equal(JSON.stringify(days),original);
+console.log('Open-time estimates, complete-hour/overnight filters, table names, unchanged source cells and CSV passed.');

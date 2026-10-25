@@ -1,4 +1,4 @@
-import {isISODate} from './core.js?v=20261023-2';
+import {isISODate} from './core.js?v=20261024-1';
 
 export function timeMinute(label) {
   const s=String(label).trim().toLowerCase().replace(/\s|\./g,'');

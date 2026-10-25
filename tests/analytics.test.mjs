@@ -44,7 +44,7 @@ assert.equal(summarize(records,{tables:[]}).days.length,0);
 assert.equal(summarize(records,{weekdays:[]}).days.length,0);
 for(const bad of [{start:'2025-02-29'},{start:'2026-01-01',end:'2025-12-31'},{tables:[]},{weekdays:[]},{weekdays:[7]},{from:1440},{to:NaN},{minMarks:-1},{minMarks:1.5},{group:'bad'},{sort:'bad'}])assert.throws(()=>runQuery(records,bad));
 const csv=queryCSV(runQuery(records,{group:'table'}).rows,'table');
-assert.match(csv,/"Table","Recorded days","Total Xs"/);assert.match(csv,/"Table 3"/);assert.ok(csv.endsWith('\r\n'));
+assert.match(csv,/"Table","Recorded days","Total Xs"/);assert.match(csv,/"Ultimate Texas Holdem \(UTH\)"/);assert.ok(csv.endsWith('\r\n'));
 const hostile={label:' =HYPERLINK("bad")\nnext',days:1,marks:0,possible:1,observations:1,average:0,occupancy:0};
 assert.ok(queryCSV([hostile]).includes('"\' =HYPERLINK(""bad"")\nnext"'),'CSV escapes quotes/newlines and neutralizes formula prefixes');
 assert.equal(JSON.stringify(records),before,'Analytics must not modify stored records');
